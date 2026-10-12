@@ -1,0 +1,20 @@
+﻿# Normalizar finales de línea
+* text=auto
+
+# Forzar LF en archivos de código
+*.py text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.toml text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# CRLF en archivos de Windows
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Binarios
+*.png binary
+*.jpg binary
+*.pdf binary
+*.xlsx binary
