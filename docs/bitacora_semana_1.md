@@ -61,3 +61,28 @@
 - Crear `src/data_validation.py` con la función `validate_dataframe`.
 - Leer el CSV con pandas y validar columnas, tipos y faltantes.
 - Mostrar tabla y estadísticas descriptivas en la sección "Datos" de la app.
+
+## Jueves 15 de octubre de 2026
+- Se creó `data/raw/pib_empleo_demo.csv` con datos ficticios de PIB y empleo (2020–2024).
+- Se creó `src/data_validation.py` con la función `validate_dataframe`.
+- Se creó `src/__init__.py` para que `src` sea un paquete importable.
+- Se validó la función con 6 pruebas manuales:
+  - ✅ Pasa con datos válidos
+  - ✅ Detecta columnas faltantes
+  - ✅ Detecta DataFrame vacío
+  - ✅ Reporta múltiples columnas faltantes
+  - ✅ Acepta columnas extra
+  - ✅ Acepta una sola fila
+- Se actualizó `app.py`:
+  - Imports: `pandas` y `validate_dataframe`
+  - Sección "Datos" ahora lee el CSV, valida, muestra tabla y estadísticas
+  - Métricas resumidas: filas, columnas, valores faltantes
+  - Manejo de errores: FileNotFoundError, ValueError, Exception general
+- Se probó el manejo de errores cambiando la ruta a un archivo inexistente: la app muestra un mensaje rojo sin caerse.
+- Pendiente: gráfica interactiva con Plotly (viernes 16).
+
+## Pendientes para el viernes 16
+- Crear gráfica con Plotly en la sección "Datos".
+- Agregar un filtro sencillo (por ejemplo, por año).
+- Documentar qué representa cada variable.
+- Commit del avance.
