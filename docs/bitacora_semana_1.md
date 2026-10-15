@@ -44,3 +44,20 @@
 
 \- Primer commit.
 
+## Martes 13 de octubre de 2026
+- Se reescribió `app.py` con la primera interfaz real de la plataforma.
+- Se agregó título, descripción y pie de página.
+- Se agregó menú lateral con las cuatro entradas:
+  - Pregunta de investigación
+  - Literatura
+  - Datos
+  - Tema
+- Cada sección muestra un encabezado, descripción y un mensaje de "se desarrollará en las próximas semanas".
+- La app corre correctamente en http://localhost:8501.
+- Se verificó el auto-reload de Streamlit: al guardar cambios en `app.py`, la app se actualiza sola con "Always rerun".
+
+## Pendientes
+- Crear `data/raw/pib_empleo_demo.csv` con datos ficticios.
+- Crear `src/data_validation.py` con la función `validate_dataframe`.
+- Leer el CSV con pandas y validar columnas, tipos y faltantes.
+- Mostrar tabla y estadísticas descriptivas en la sección "Datos" de la app.
