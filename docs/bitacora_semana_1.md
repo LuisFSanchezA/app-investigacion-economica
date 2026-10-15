@@ -126,3 +126,17 @@
 - Revisar `README.md` e incluir instrucciones de instalación.
 - Registrar pendientes y preparar la semana 2.
 - Commit final y cierre de semana.
+
+## Domingo 18 de octubre de 2026
+- Verificación desde cero: se activó el venv, se instalaron dependencias y la app corrió sin problemas.
+- Se ejecutaron las 6 pruebas automatizadas: todas aprobadas.
+- Se realizaron las 6 pruebas funcionales manuales:
+  - ✅ La aplicación se inicia con `streamlit run app.py`
+  - ✅ La página muestra el nombre y objetivo de la plataforma
+  - ✅ Se puede visualizar el conjunto de datos de prueba
+  - ✅ La tabla presenta las columnas y observaciones correctas
+  - ✅ La gráfica tiene título, ejes y etiquetas comprensibles
+  - ✅ Un archivo incorrecto produce un mensaje entendible
+- Se creó `README.md` con instrucciones de instalación, uso y estructura.
+- Se creó `docs/pendientes_semana_2.md` con el plan para la siguiente semana.
+- Semana 1 completada. 6 commits en el historial.
