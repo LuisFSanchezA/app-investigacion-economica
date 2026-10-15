@@ -86,3 +86,24 @@
 - Agregar un filtro sencillo (por ejemplo, por año).
 - Documentar qué representa cada variable.
 - Commit del avance.
+
+## Viernes 16 de octubre de 2026
+- Se actualizó `app.py` con visualizaciones interactivas usando Plotly.
+- Se agregó gráfica de línea del PIB por año con marcadores.
+- Se agregó gráfica de línea del empleo por año con marcadores.
+- Se agregó slider de rango de años (2020–2024) que filtra las gráficas, la tabla y las estadísticas.
+- Se agregó expander con documentación de las variables:
+  - `entidad`: nombre del país o entidad federativa (texto)
+  - `anio`: año de la observación (entero)
+  - `pib_millones`: PIB en millones de unidades monetarias
+  - `empleo_miles`: población ocupada en miles de personas
+- Se verificó que al mover el slider, las gráficas, la tabla y las estadísticas se recalculan correctamente.
+- Se agregó texto dinámico "Mostrando X de Y observaciones" según el filtro.
+- Pendiente: escribir las pruebas automatizadas con pytest (sábado 17).
+
+## Pendientes para el sábado 17
+- Crear `tests/test_data_validation.py` con al menos 5 pruebas con pytest.
+- Probar la lectura y validación de datos.
+- Probar casos válidos y con errores.
+- Ejecutar `python -m pytest -v` y corregir fallos.
+- Commit.

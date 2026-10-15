@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
 from src.data_validation import validate_dataframe
 
 # ---- Configuración de la página inicial ----
@@ -67,20 +68,93 @@ elif seccion == "Datos":
 
         st.success("Datos cargados y validados correctamente.")
 
-        # Métricas resumidas
+        # --- Métricas resumidas ---
         st.subheader("Resumen")
         col1, col2, col3 = st.columns(3)
         col1.metric("Filas", df.shape[0])
         col2.metric("Columnas", df.shape[1])
         col3.metric("Valores faltantes", int(df.isna().sum().sum()))
 
-        # Tabla de datos
-        st.subheader("Tabla de datos")
-        st.dataframe(df, use_container_width=True)
+        # --- Filtro por rango de años ---
+        st.subheader("Filtro")
+        anio_min = int(df["anio"].min())
+        anio_max = int(df["anio"].max())
 
-        # Estadísticas descriptivas
+        rango_anios = st.slider(
+            "Selecciona el rango de años:",
+            min_value=anio_min,
+            max_value=anio_max,
+            value=(anio_min, anio_max),
+            step=1,
+        )
+
+        df_filtrado = df[
+            (df["anio"] >= rango_anios[0]) & (df["anio"] <= rango_anios[1])
+        ]
+
+        st.caption(
+            f"Mostrando {df_filtrado.shape[0]} de {df.shape[0]} observaciones."
+        )
+
+        # --- Gráfica del PIB ---
+        st.subheader("Evolución del PIB por año")
+        fig_pib = px.line(
+            df_filtrado,
+            x="anio",
+            y="pib_millones",
+            markers=True,
+            title="PIB en millones (datos ficticios de prueba)",
+            labels={
+                "anio": "Año",
+                "pib_millones": "PIB (millones)",
+            },
+        )
+        fig_pib.update_layout(
+            xaxis=dict(tickmode="linear", dtick=1),
+            hovermode="x unified",
+        )
+        st.plotly_chart(fig_pib, use_container_width=True)
+
+        # --- Gráfica del empleo ---
+        st.subheader("Evolución del empleo por año")
+        fig_empleo = px.line(
+            df_filtrado,
+            x="anio",
+            y="empleo_miles",
+            markers=True,
+            title="Empleo en miles de personas (datos ficticios de prueba)",
+            labels={
+                "anio": "Año",
+                "empleo_miles": "Empleo (miles)",
+            },
+        )
+        fig_empleo.update_layout(
+            xaxis=dict(tickmode="linear", dtick=1),
+            hovermode="x unified",
+        )
+        st.plotly_chart(fig_empleo, use_container_width=True)
+
+        # --- Documentación de variables ---
+        with st.expander("📖 ¿Qué representa cada variable?"):
+            st.markdown(
+                """
+                - **entidad**: nombre del país o entidad federativa (texto).
+                - **anio**: año de la observación (entero).
+                - **pib_millones**: Producto Interno Bruto en millones de unidades monetarias.
+                - **empleo_miles**: población ocupada en miles de personas.
+
+                **Nota:** los datos de este archivo son ficticios y solo se usan
+                para probar el flujo de lectura, validación y visualización.
+                """
+            )
+
+        # --- Tabla de datos ---
+        st.subheader("Tabla de datos")
+        st.dataframe(df_filtrado, use_container_width=True)
+
+        # --- Estadísticas descriptivas ---
         st.subheader("Estadísticas descriptivas")
-        st.dataframe(df.describe(), use_container_width=True)
+        st.dataframe(df_filtrado.describe(), use_container_width=True)
 
     except FileNotFoundError:
         st.error(f"No se encontró el archivo: {ruta_csv}")
