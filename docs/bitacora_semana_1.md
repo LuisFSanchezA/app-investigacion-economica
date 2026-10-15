@@ -107,3 +107,22 @@
 - Probar casos válidos y con errores.
 - Ejecutar `python -m pytest -v` y corregir fallos.
 - Commit.
+
+## Sábado 17 de octubre de 2026
+- Se creó `tests/test_data_validation.py` con 6 pruebas automatizadas:
+  1. `test_lectura_correcta_del_csv`: lee el CSV y verifica filas, columnas y nombres.
+  2. `test_faltan_columnas_obligatorias`: verifica que se detecta una columna faltante.
+  3. `test_deteccion_de_valores_faltantes`: verifica que los faltantes se detectan sin eliminarlos ni imputarlos.
+  4. `test_validacion_de_tipos_de_datos`: verifica que un tipo incorrecto (año como texto) se detecta.
+  5. `test_dataframe_vacio`: verifica que un DataFrame vacío levanta ValueError.
+  6. `test_archivo_inexistente`: verifica que leer un archivo inexistente levanta FileNotFoundError.
+- Se ejecutó `python -m pytest -v` desde la raíz del proyecto: 6 pruebas aprobadas en 1.69 segundos.
+- Pendiente: README.md, pruebas funcionales manuales y preparación de la semana 2 (domingo 18).
+
+## Pendientes para el domingo 18
+- Ejecutar la aplicación desde cero (`streamlit run app.py`).
+- Ejecutar todas las pruebas automatizadas (`python -m pytest -v`).
+- Realizar las 6 pruebas funcionales manuales.
+- Revisar `README.md` e incluir instrucciones de instalación.
+- Registrar pendientes y preparar la semana 2.
+- Commit final y cierre de semana.
