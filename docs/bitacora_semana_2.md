@@ -19,3 +19,36 @@
 - Consultar el PIB de México (indicador `NY.GDP.MKTP.CD`) mediante la API pública del Banco Mundial.
 - Convertir la respuesta JSON en un DataFrame de pandas.
 - Manejar errores HTTP, respuestas vacías y problemas de conexión.
+
+
+## Martes 20 de octubre de 2026
+- Se creó `src/fuentes/world_bank.py` con la clase `BancoMundial` que implementa `FuenteBase`.
+- Catálogo de indicadores (`INDICADORES`):
+  - `NY.GDP.MKTP.CD` — PIB (USD corrientes)
+  - `NY.GDP.PCAP.CD` — PIB per cápita
+  - `SP.POP.TOTL` — Población total
+  - `SL.UEM.TOTL.ZS` — Tasa de desempleo
+- Catálogo de países (`PAISES`): MEX, USA, BRA, ARG, CHL, COL.
+- El método `consultar()`:
+  - Construye URL de la API pública del Banco Mundial.
+  - Timeout de 60 segundos (la API puede tardar).
+  - Maneja errores de conexión (Timeout, ConnectionError).
+  - Maneja errores HTTP (status != 200).
+  - Maneja respuestas mal formadas o vacías.
+  - **Filtra el DataFrame por el rango de años pedido** (el Banco Mundial a veces ignora el parámetro `date`).
+  - Si después del filtro no quedan datos, lanza `ValueError` claro.
+  - Devuelve tupla `(DataFrame, Metadatos)`.
+- Se actualizó `src/fuentes/__init__.py` para exponer `BancoMundial`, `INDICADORES`, `PAISES`, `Metadatos`, `FuenteBase`.
+- Se probaron 5 casos:
+  - ✅ Consulta exitosa: PIB México 2000–2024 (25 filas).
+  - ✅ País inexistente ('XXX'): ValueError con mensaje claro.
+  - ✅ Indicador inexistente: ValueError con mensaje claro.
+  - ✅ Rango sin datos (1900–1905): ValueError con mensaje claro.
+  - ✅ Rango parcial (1950–1970): devuelve 1960–1970 (11 filas).
+- Aprendizaje: el Banco Mundial ignora rangos inválidos y devuelve todos los datos. Es necesario filtrar del lado del cliente.
+
+## Pendientes para el miércoles 21
+- Normalizar nombres de columnas y tipos de datos.
+- Verificar que años y valores numéricos sean válidos.
+- Detectar observaciones duplicadas y valores faltantes.
+- Conservar la unidad original y documentar transformaciones.
