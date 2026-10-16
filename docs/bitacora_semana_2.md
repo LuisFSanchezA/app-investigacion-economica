@@ -125,3 +125,24 @@
 - Probar respuesta vacía o con campos faltantes.
 - Simular error de conexión o respuesta HTTP fallida.
 - Comprobar que los metadatos se conserven.
+
+
+## Sábado 24 de octubre de 2026
+- Se creó `tests/test_world_bank.py` con 7 pruebas usando `unittest.mock`.
+- Las pruebas simulan respuestas de la API sin hacer llamadas reales (rápidas y deterministas).
+- Pruebas implementadas:
+  1. `test_conversion_json_valido`: una respuesta JSON válida se convierte en DataFrame con las columnas correctas.
+  2. `test_respuesta_vacia`: una respuesta sin observaciones lanza ValueError.
+  3. `test_respuesta_mal_formada`: una respuesta con formato inesperado lanza ValueError.
+  4. `test_error_http`: status code distinto de 200 lanza ConnectionError.
+  5. `test_error_de_conexion`: ConnectionError de requests se propaga como ConnectionError.
+  6. `test_timeout`: Timeout de requests se propaga como ConnectionError.
+  7. `test_metadatos_se_conservan`: los metadatos devueltos tienen todos los campos esperados.
+- Resultado: 7 pruebas aprobadas. Total acumulado: 13 pruebas (6 + 7).
+- Se ejecutó `python -m pytest -v` desde la raíz: 13 passed.
+
+## Pendientes para el domingo 25
+- Ejecutar la aplicación desde cero.
+- Ejecutar todas las pruebas con pytest.
+- Actualizar README.md con la nueva fuente, indicador e instrucciones.
+- Guardar cambios en Git y registrar pendientes.
