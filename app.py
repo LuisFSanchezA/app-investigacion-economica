@@ -1,7 +1,15 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+
 from src.data_validation import validate_dataframe
+from src.fuentes import (
+    BancoMundial,
+    INDICADORES,
+    PAISES,
+    normalizar_serie,
+    resumen_calidad,
+)
 
 # ---- Configuración de la página inicial ----
 
@@ -28,10 +36,11 @@ st.divider()
 
 st.sidebar.title("Menú de opciones:")
 seccion = st.sidebar.radio(
-    "Selecciona una opción:",
+    "Selecciona una sección:",
     (
-        "Pregunta general",
-        "Análisis de Literatura",
+        "Pregunta",
+        "Literatura",
+        "Fuentes de datos",
         "Datos",
         "Tema",
     ),
@@ -52,6 +61,88 @@ elif seccion == "Análisis de Literatura":
         "Aquí analizarás y organizarás las fuentes académicas para tu investigación"
     )
     st.info("Esta sección sigue desarrollándose")
+
+elif seccion == "Fuentes de datos":
+    st.header("🌐 Fuentes de datos")
+    st.write(
+        "Consulta series económicas directamente desde el Banco Mundial."
+    )
+
+    # --- Controles de consulta ---
+    col1, col2 = st.columns(2)
+
+    with col1:
+        pais_codigo = st.selectbox(
+            "País:",
+            options=list(PAISES.keys()),
+            format_func=lambda x: f"{PAISES[x]} ({x})",
+        )
+
+    with col2:
+        indicador_codigo = st.selectbox(
+            "Indicador:",
+            options=list(INDICADORES.keys()),
+            format_func=lambda x: INDICADORES[x]["nombre"],
+        )
+
+    col3, col4 = st.columns(2)
+    with col3:
+        anio_inicio = st.number_input(
+            "Año inicial:", min_value=1960, max_value=2024, value=2000
+        )
+    with col4:
+        anio_fin = st.number_input(
+            "Año final:", min_value=1960, max_value=2024, value=2024
+        )
+
+    if st.button("Consultar"):
+        with st.spinner("Consultando al Banco Mundial..."):
+            try:
+                bm = BancoMundial()
+                df, meta = bm.consultar(
+                    indicador=indicador_codigo,
+                    pais=pais_codigo,
+                    periodo_inicio=anio_inicio,
+                    periodo_fin=anio_fin,
+                )
+
+                df_norm = normalizar_serie(df)
+                resumen = resumen_calidad(df_norm, meta)
+
+                st.session_state["df_fuente"] = df_norm
+                st.session_state["meta_fuente"] = meta
+                st.session_state["resumen_fuente"] = resumen
+                st.session_state["error_fuente"] = None
+
+            except (ValueError, ConnectionError) as e:
+                st.session_state["df_fuente"] = None
+                st.session_state["error_fuente"] = str(e)
+
+    # --- Mostrar resultados ---
+    if st.session_state.get("error_fuente"):
+        st.error(f"Error en la consulta: {st.session_state['error_fuente']}")
+
+    elif st.session_state.get("df_fuente") is not None:
+        df_norm = st.session_state["df_fuente"]
+        meta = st.session_state["meta_fuente"]
+        resumen = st.session_state["resumen_fuente"]
+
+        st.success(f"Consulta exitosa: {len(df_norm)} observaciones.")
+
+        # --- Metadatos ---
+        st.subheader("Metadatos de la fuente")
+        st.json(meta.como_dict())
+
+        # --- Resumen de calidad ---
+        st.subheader("Resumen de calidad")
+        col_a, col_b, col_c = st.columns(3)
+        col_a.metric("Observaciones", resumen["observaciones"])
+        col_b.metric("Duplicados", resumen["duplicados"])
+        col_c.metric("Faltantes (total)", sum(resumen["faltantes"].values()))
+
+        # --- Tabla ---
+        st.subheader("Datos")
+        st.dataframe(df_norm, use_container_width=True)
 
 elif seccion == "Datos":
     st.header("📈 Datos")

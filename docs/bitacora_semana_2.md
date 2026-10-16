@@ -73,3 +73,32 @@
 - Permitir elegir país e indicador.
 - Mostrar tabla y fuente consultada.
 - Mensaje de error comprensible si la consulta falla.
+
+## Jueves 22 de octubre de 2026
+- Se agregó la sección "Fuentes de datos" al menú lateral de la app.
+- Controles de consulta:
+  - Selector de país (6 opciones).
+  - Selector de indicador (4 opciones).
+  - Inputs de año inicial y final (min 1960, max 2024).
+  - Botón "Consultar".
+- Al consultar:
+  - Se llama a `BancoMundial.consultar()`.
+  - Se normaliza la serie con `normalizar_serie()`.
+  - Se calcula el resumen de calidad con `resumen_calidad()`.
+  - Se guarda todo en `st.session_state` para persistir entre interacciones.
+- Visualización de resultados:
+  - Mensaje de éxito con número de observaciones.
+  - Metadatos en formato JSON.
+  - Resumen de calidad con 3 métricas (observaciones, duplicados, faltantes).
+  - Tabla completa del DataFrame.
+- Manejo de errores:
+  - Se capturan `ValueError` y `ConnectionError`.
+  - Se muestra mensaje rojo con el error.
+  - La app no se cae.
+- Validación preventiva: los inputs de año tienen min=1960 y max=2024, lo que evita consultas fuera de rango.
+
+## Pendientes para el viernes 23
+- Crear gráfica temporal de la serie consultada.
+- Mostrar el periodo y la unidad de medida.
+- Permitir descargar los resultados en CSV.
+- Comprobar que la descarga conserve nombres y valores.
