@@ -102,3 +102,26 @@
 - Mostrar el periodo y la unidad de medida.
 - Permitir descargar los resultados en CSV.
 - Comprobar que la descarga conserve nombres y valores.
+
+## Viernes 23 de octubre de 2026
+- Se agregó la gráfica temporal de la serie consultada con Plotly.
+- Se agregó un bloque de "Contexto de la serie" con:
+  - Periodo (año min – año max).
+  - Unidad de medida.
+  - Nombre del indicador.
+- Se agregó botón de descarga CSV.
+  - El nombre del archivo incluye: código del indicador, país, periodo.
+  - Ejemplo: `NY.GDP.MKTP.CD_México_2000_2024.csv`.
+- Se comprobó que la descarga conserva:
+  - Nombres de columnas: anio, valor, pais_codigo, pais_nombre, indicador_codigo, indicador_nombre.
+  - Valores correctos.
+- Se probó con dos combinaciones:
+  - México — PIB (USD corrientes) — 2000–2024.
+  - Brasil — Población total — 2000–2024.
+
+## Pendientes para el sábado 24
+- Escribir pruebas automatizadas con pytest para el conector del Banco Mundial.
+- Probar conversión de respuesta JSON válida.
+- Probar respuesta vacía o con campos faltantes.
+- Simular error de conexión o respuesta HTTP fallida.
+- Comprobar que los metadatos se conserven.

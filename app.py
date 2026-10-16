@@ -140,9 +140,52 @@ elif seccion == "Fuentes de datos":
         col_b.metric("Duplicados", resumen["duplicados"])
         col_c.metric("Faltantes (total)", sum(resumen["faltantes"].values()))
 
+        # --- Contexto de la serie ---
+        st.subheader("Contexto de la serie")
+        st.markdown(
+            f"""
+            - **Periodo:** {resumen['anio_min']} – {resumen['anio_max']}
+            - **Unidad:** {resumen['unidad']}
+            - **Indicador:** {resumen['indicador']}
+            """
+        )
+
+        # --- Gráfica temporal ---
+        st.subheader("Serie temporal")
+        fig = px.line(
+            df_norm,
+            x="anio",
+            y="valor",
+            markers=True,
+            title=f"{resumen['indicador']} — {resumen['fuente']}",
+            labels={
+                "anio": "Año",
+                "valor": f"Valor ({resumen['unidad']})",
+            },
+        )
+        fig.update_layout(
+            xaxis=dict(tickmode="linear", dtick=1),
+            hovermode="x unified",
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
         # --- Tabla ---
         st.subheader("Datos")
         st.dataframe(df_norm, use_container_width=True)
+
+        # --- Descarga CSV ---
+        st.subheader("Descargar")
+        csv_bytes = df_norm.to_csv(index=False).encode("utf-8")
+        nombre_archivo = (
+            f"{meta.codigo_indicador}_{meta.pais}_"
+            f"{meta.periodo_inicio}_{meta.periodo_fin}.csv"
+        )
+        st.download_button(
+            label="Descargar CSV",
+            data=csv_bytes,
+            file_name=nombre_archivo,
+            mime="text/csv",
+        )
 
 elif seccion == "Datos":
     st.header("📈 Datos")
