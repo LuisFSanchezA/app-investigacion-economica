@@ -52,3 +52,24 @@
 - Verificar que años y valores numéricos sean válidos.
 - Detectar observaciones duplicadas y valores faltantes.
 - Conservar la unidad original y documentar transformaciones.
+
+## Miércoles 21 de octubre de 2026
+- Se creó `src/fuentes/normalizacion.py` con 4 funciones:
+  1. `normalizar_serie(df)`: renombra columnas al esquema estándar (anio, valor), convierte tipos, ordena por año y reinicia el índice.
+  2. `detectar_duplicados(df)`: devuelve filas duplicadas por año.
+  3. `detectar_faltantes(df)`: devuelve resumen de valores faltantes por columna.
+  4. `resumen_calidad(df, metadatos)`: devuelve dict con fuente, indicador, unidad, observaciones, rango de años, duplicados y faltantes.
+- Se actualizó `src/fuentes/__init__.py` para exponer las nuevas funciones.
+- Se probó:
+  - ✅ Normalización de serie del Banco Mundial: tipos correctos (Int64, float64).
+  - ✅ Resumen de calidad: 25 obs, 2000–2024, 0 duplicados, 0 faltantes.
+  - ✅ Detección de duplicados con datos sintéticos: encontró 2 filas duplicadas.
+  - ✅ Detección de faltantes con datos sintéticos: encontró 1 faltante en 'valor'.
+  - ✅ Normalización con nombres raros (date, value): renombró correctamente.
+- Las transformaciones preservan la unidad original en los metadatos.
+
+## Pendientes para el jueves 22
+- Agregar sección "Fuentes de datos" a la app.
+- Permitir elegir país e indicador.
+- Mostrar tabla y fuente consultada.
+- Mensaje de error comprensible si la consulta falla.
