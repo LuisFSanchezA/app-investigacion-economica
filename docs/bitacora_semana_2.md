@@ -146,3 +146,27 @@
 - Ejecutar todas las pruebas con pytest.
 - Actualizar README.md con la nueva fuente, indicador e instrucciones.
 - Guardar cambios en Git y registrar pendientes.
+
+## Domingo 25 de octubre de 2026
+- Verificación desde cero: se activó el venv, se instalaron dependencias y la app corrió sin problemas.
+- Se probaron las 5 secciones del menú: Pregunta, Literatura, Fuentes de datos, Datos, Tema.
+- Se realizó una consulta de prueba en "Fuentes de datos":
+  - País: México
+  - Indicador: PIB (USD corrientes)
+  - Años: 2000–2024
+  - Resultado: metadatos, gráfica, tabla y descarga CSV funcionando correctamente.
+- Se ejecutaron las 13 pruebas automatizadas: todas aprobadas.
+- Se actualizó `README.md`:
+  - Nueva sección "Fuentes de datos integradas" con tabla de indicadores y países.
+  - Instrucciones de uso de la sección "Fuentes de datos".
+  - Estructura actualizada del proyecto.
+  - Próximos pasos para la semana 3.
+- Se creó `docs/pendientes_semana_3.md` con el plan para la siguiente semana.
+- Semana 2 completada. 15 commits en el historial.
+
+## Pendientes para la semana 3
+- Integrar Banco de México (Banxico) e INEGI.
+- Integrar IA en la sección "Pregunta" (sugerencias de preguntas, objetivos y protocolo).
+- Subir el repositorio a GitHub.
+- Configurar GitHub Actions para pruebas automáticas.
+- Diseñar las secciones "Literatura" y "Tema".
