@@ -1,5 +1,13 @@
 # Plataforma de investigación económica
 
+[![Tests](https://github.com/LuisFSanchezA/app-investigacion-economica/actions/workflows/tests.yml/badge.svg)](https://github.com/LuisFSanchezA/app-investigacion-economica/actions/workflows/tests.yml)
+
+Herramienta para organizar y explorar el proceso de investigación económica:
+desde la pregunta inicial hasta el análisis de datos y la construcción del tema.
+
+
+# Plataforma de investigación económica
+
 Herramienta para organizar y explorar el proceso de investigación económica:
 desde la pregunta inicial hasta el análisis de datos y la construcción del tema.
 
@@ -12,6 +20,50 @@ Módulos actuales:
 - **Literatura**: organización de fuentes académicas (placeholder).
 - **Datos**: carga, validación y visualización de datos económicos (funcional).
 - **Tema**: construcción y delimitación del tema (placeholder).
+
+## Fuentes de datos integradas
+
+### Banco Mundial
+
+Se integró la API pública del Banco Mundial para consultar series económicas reales.
+
+**Indicadores disponibles:**
+
+| Código | Nombre | Unidad |
+|---|---|---|
+| `NY.GDP.MKTP.CD` | PIB | USD corrientes |
+| `NY.GDP.PCAP.CD` | PIB per cápita | USD corrientes |
+| `SP.POP.TOTL` | Población total | personas |
+| `SL.UEM.TOTL.ZS` | Tasa de desempleo | % |
+
+**Países disponibles:**
+
+| Código | País |
+|---|---|
+| MEX | México |
+| USA | Estados Unidos |
+| BRA | Brasil |
+| ARG | Argentina |
+| CHL | Chile |
+| COL | Colombia |
+
+**Uso:**
+
+1. Ir a la sección **"Fuentes de datos"** en el menú lateral.
+2. Elegir país, indicador y rango de años.
+3. Clic en **Consultar**.
+4. Ver metadatos, gráfica, tabla y descargar CSV.
+
+**Características:**
+
+- Metadatos completos: fuente, indicador, unidad, periodo, fecha de consulta, URL.
+- Normalización de series temporales.
+- Detección de duplicados y valores faltantes.
+- Manejo robusto de errores (conexión, HTTP, respuestas vacías).
+- Exportación a CSV.
+
+**Nota:** los datos son reales y provienen directamente del Banco Mundial.
+Verificar la fecha de consulta antes de usarlos en análisis formales.
 
 ## Requisitos
 
@@ -35,20 +87,29 @@ Módulos actuales:
 ## Estructura del proyecto
 
 investigacion-economica/
-├── app.py                          # Aplicación principal de Streamlit
-├── requirements.txt                # Dependencias del proyecto
-├── README.md                       # Este archivo
-├── .gitignore                      # Archivos excluidos de Git
-├── .gitattributes                  # Normalización de finales de línea
-├── app/                            # Módulos de la aplicación (futuro)
+├── app.py # Aplicación principal de Streamlit
+├── requirements.txt # Dependencias del proyecto
+├── README.md # Este archivo
+├── .gitignore
+├── .gitattributes
+├── app/
 ├── src/
-│   ├── __init__.py
-│   └── data_validation.py          # Funciones de validación de datos
+│ ├── init.py
+│ ├── data_validation.py # Validación de DataFrames
+│ └── fuentes/ # Conectores de fuentes externas
+│ ├── init.py
+│ ├── base.py # Clase abstracta FuenteBase
+│ ├── metadatos.py # Esquema de metadatos
+│ ├── normalizacion.py # Funciones de normalización
+│ └── world_bank.py # Conector del Banco Mundial
 ├── tests/
-│   └── test_data_validation.py     # Pruebas con pytest
+│ ├── test_data_validation.py # 6 pruebas
+│ └── test_world_bank.py # 7 pruebas
 ├── data/
-│   ├── raw/                        # Datos originales
-│   │   └── pib_empleo_demo.csv     # CSV de prueba (datos ficticios)
-│   └── processed/                  # Datos procesados (futuro)
+│ ├── raw/
+│ │ └── pib_empleo_demo.csv
+│ └── processed/
 └── docs/
-    └── bitacora_semana_1.md        # Bitácora de desarrollo
+├── bitacora_semana_1.md
+├── bitacora_semana_2.md
+└── pendientes_semana_3.md
