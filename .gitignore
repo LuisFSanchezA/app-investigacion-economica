@@ -25,3 +25,5 @@ desktop.ini
 # Editores
 .vscode/
 *.swp
+
+test_ai.py
