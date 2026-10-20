@@ -4,6 +4,7 @@ from src.fuentes.base import FuenteBase
 from src.fuentes.metadatos import Metadatos
 from src.fuentes.normalizacion import (
     normalizar_serie,
+    normalizar_serie_fechas,
     detectar_duplicados,
     detectar_faltantes,
     resumen_calidad,
@@ -15,6 +16,7 @@ __all__ = [
     "FuenteBase",
     "Metadatos",
     "normalizar_serie",
+    "normalizar_serie_fechas",
     "detectar_duplicados",
     "detectar_faltantes",
     "resumen_calidad",

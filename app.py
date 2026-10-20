@@ -7,7 +7,10 @@ from src.fuentes import (
     BancoMundial,
     INDICADORES,
     PAISES,
+    Banxico,
+    SERIES,
     normalizar_serie,
+    normalizar_serie_fechas,
     resumen_calidad,
 )
 
@@ -140,6 +143,7 @@ if seccion == "Pregunta":
             data=st.session_state["protocolo"],
             file_name="protocolo_borrador.md",
             mime="text/markdown",
+            key="btn_descargar_protocolo",
         )
 
 elif seccion == "Análisis de Literatura":
@@ -152,9 +156,172 @@ elif seccion == "Análisis de Literatura":
 elif seccion == "Fuentes de datos":
     st.header("🌐 Fuentes de datos")
     st.write(
-        "Consulta series económicas directamente desde el Banco Mundial."
+        "Consulta series económicas de fuentes oficiales: Banco Mundial y Banco de México."
     )
 
+    # --- Selector de fuente ---
+    fuente = st.radio(
+        "Selecciona la fuente:",
+        options=["Banco Mundial", "Banxico"],
+        horizontal=True,
+        key="selector_fuente",  # ← nuevo
+    )
+    st.divider()
+
+    # --- Controles según la fuente ---
+    if fuente == "Banco Mundial":
+        col1, col2 = st.columns(2)
+        with col1:
+            pais_codigo = st.selectbox(
+                "País:",
+                options=list(PAISES.keys()),
+                format_func=lambda x: f"{PAISES[x]} ({x})",
+                key="bm_pais",  # ← nuevo
+            )
+        with col2:
+            indicador_codigo = st.selectbox(
+                "Indicador:",
+                options=list(INDICADORES.keys()),
+                format_func=lambda x: INDICADORES[x]["nombre"],
+                key="bm_indicador",  # ← nuevo
+            )
+
+        col3, col4 = st.columns(2)
+        with col3:
+            anio_inicio = st.number_input(
+                "Año inicial:", min_value=1960, max_value=2024, value=2000,
+                key="bm_anio_inicio",  # ← nuevo
+            )
+        with col4:
+            anio_fin = st.number_input(
+                "Año final:", min_value=1960, max_value=2024, value=2024,
+                key="bm_anio_fin",  # ← nuevo
+            )
+
+    else:  # Banxico
+        indicador_codigo = st.selectbox(
+            "Serie:",
+            options=list(SERIES.keys()),
+            format_func=lambda x: f"{SERIES[x]['nombre']} ({x})",
+            key="bx_serie",  # ← nuevo
+        )
+
+        col3, col4 = st.columns(2)
+        with col3:
+            anio_inicio = st.number_input(
+                "Año inicial:", min_value=2000, max_value=2024, value=2024,
+                key="bx_anio_inicio",  # ← nuevo
+            )
+        with col4:
+            anio_fin = st.number_input(
+                "Año final:", min_value=2000, max_value=2024, value=2024,
+                key="bx_anio_fin",  # ← nuevo
+            )
+
+        pais_codigo = "MEX"
+
+    # --- Botón de consulta ---
+    if st.button("Consultar", key="btn_consultar_datos"):
+        with st.spinner(f"Consultando {fuente}..."):
+            try:
+                if fuente == "Banco Mundial":
+                    conector = BancoMundial()
+                else:
+                    conector = Banxico()
+
+                df, meta = conector.consultar(
+                    indicador=indicador_codigo,
+                    pais=pais_codigo,
+                    periodo_inicio=anio_inicio,
+                    periodo_fin=anio_fin,
+                )
+
+                # Normalizar según la fuente
+                if "fecha" in df.columns:
+                    df_norm = normalizar_serie_fechas(df)
+                else:
+                    df_norm = normalizar_serie(df)
+
+                resumen = resumen_calidad(df_norm, meta)
+
+                st.session_state["df_fuente"] = df_norm
+                st.session_state["meta_fuente"] = meta
+                st.session_state["resumen_fuente"] = resumen
+                st.session_state["error_fuente"] = None
+
+            except (ValueError, ConnectionError) as e:
+                st.session_state["df_fuente"] = None
+                st.session_state["error_fuente"] = str(e)
+
+    # --- Mostrar resultados ---
+    if st.session_state.get("error_fuente"):
+        st.error(f"Error en la consulta: {st.session_state['error_fuente']}")
+
+    elif st.session_state.get("df_fuente") is not None:
+        df_norm = st.session_state["df_fuente"]
+        meta = st.session_state["meta_fuente"]
+        resumen = st.session_state["resumen_fuente"]
+
+        st.success(f"Consulta exitosa: {len(df_norm)} observaciones.")
+
+        # --- Metadatos ---
+        st.subheader("Metadatos de la fuente")
+        st.json(meta.como_dict())
+
+        # --- Resumen de calidad ---
+        st.subheader("Resumen de calidad")
+        col_a, col_b, col_c = st.columns(3)
+        col_a.metric("Observaciones", resumen["observaciones"])
+        col_b.metric("Duplicados", resumen["duplicados"])
+        col_c.metric("Faltantes (total)", sum(resumen["faltantes"].values()))
+
+        # --- Contexto de la serie ---
+        st.subheader("Contexto de la serie")
+        st.markdown(
+            f"""
+            - **Periodo:** {resumen['anio_min']} – {resumen['anio_max']}
+            - **Unidad:** {resumen['unidad']}
+            - **Indicador:** {resumen['indicador']}
+            """
+        )
+
+        # --- Gráfica temporal ---
+        st.subheader("Serie temporal")
+        fig = px.line(
+            df_norm,
+            x="anio",
+            y="valor",
+            markers=True,
+            title=f"{resumen['indicador']} — {resumen['fuente']}",
+            labels={
+                "anio": "Año",
+                "valor": f"Valor ({resumen['unidad']})",
+            },
+        )
+        fig.update_layout(
+            xaxis=dict(tickmode="linear", dtick=1),
+            hovermode="x unified",
+        )
+        st.plotly_chart(fig, use_container_width=True, key="grafica_fuente")
+
+        # --- Tabla ---
+        st.subheader("Datos")
+        st.dataframe(df_norm, use_container_width=True)
+
+        # --- Descarga CSV ---
+        st.subheader("Descargar")
+        csv_bytes = df_norm.to_csv(index=False).encode("utf-8")
+        nombre_archivo = (
+            f"{meta.codigo_indicador}_{meta.pais}_"
+            f"{meta.periodo_inicio}_{meta.periodo_fin}.csv"
+        )
+        st.download_button(
+            label="Descargar CSV",
+            data=csv_bytes,
+            file_name=nombre_archivo,
+            mime="text/csv",
+            key="btn_descargar_datos",
+        )
     # --- Controles de consulta ---
     col1, col2 = st.columns(2)
 
@@ -182,7 +349,7 @@ elif seccion == "Fuentes de datos":
             "Año final:", min_value=1960, max_value=2024, value=2024
         )
 
-    if st.button("Consultar"):
+    if st.button("Consultar", key="btn_consultar_fuente"):
         with st.spinner("Consultando al Banco Mundial..."):
             try:
                 bm = BancoMundial()
@@ -254,7 +421,7 @@ elif seccion == "Fuentes de datos":
             xaxis=dict(tickmode="linear", dtick=1),
             hovermode="x unified",
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, key="grafica_fuente_2")
 
         # --- Tabla ---
         st.subheader("Datos")
@@ -272,6 +439,7 @@ elif seccion == "Fuentes de datos":
             data=csv_bytes,
             file_name=nombre_archivo,
             mime="text/csv",
+            key="btn_descargar_fuente",
         )
 
 elif seccion == "Datos":
@@ -334,7 +502,7 @@ elif seccion == "Datos":
             xaxis=dict(tickmode="linear", dtick=1),
             hovermode="x unified",
         )
-        st.plotly_chart(fig_pib, use_container_width=True)
+        st.plotly_chart(fig_pib, use_container_width=True, key="grafica_pib")
 
         # --- Gráfica del empleo ---
         st.subheader("Evolución del empleo por año")
@@ -353,7 +521,7 @@ elif seccion == "Datos":
             xaxis=dict(tickmode="linear", dtick=1),
             hovermode="x unified",
         )
-        st.plotly_chart(fig_empleo, use_container_width=True)
+        st.plotly_chart(fig_empleo, use_container_width=True, key="grafica_empleo")
 
         # --- Documentación de variables ---
         with st.expander("📖 ¿Qué representa cada variable?"):

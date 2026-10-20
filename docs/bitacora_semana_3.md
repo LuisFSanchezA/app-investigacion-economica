@@ -109,3 +109,20 @@ Ampliar las fuentes de datos e integrar la sección de "Pregunta" con asistencia
 ## Pendientes
 - Integrar Banxico en la sección "Fuentes de datos" de la app.
 - Agregar un selector de fuente (Banco Mundial / Banxico).
+
+## Integración de Banxico en la app
+- Se actualizó `app.py` para agregar un selector de fuente:
+  - "Banco Mundial" (con selector de país, indicador y años).
+  - "Banxico" (con selector de serie y años).
+- Se agregó `normalizar_serie_fechas()` en `normalizacion.py` para manejar fuentes con columna `fecha` (datetime).
+- Se agregó `key` único a todos los widgets de Streamlit para evitar colisiones:
+  - selectbox: `bm_pais`, `bm_indicador`, `bx_serie`
+  - number_input: `bm_anio_inicio`, `bm_anio_fin`, `bx_anio_inicio`, `bx_anio_fin`
+  - button: `btn_consultar_datos`, `btn_consultar_fuente`
+  - plotly_chart: `grafica_fuente`, `grafica_fuente_2`, `grafica_pib`, `grafica_empleo`
+  - download_button: `btn_descargar_protocolo`, `btn_descargar_datos`, `btn_descargar_fuente`
+- Se probó:
+  - ✅ Banxico: serie SF43718 (tipo de cambio), 2024–2024 → ~251 observaciones
+  - ✅ Banco Mundial: PIB México 2000–2024 → 25 observaciones
+  - ✅ Sección "Datos": CSV de prueba con gráficas
+  - ✅ Sección "Pregunta": IA funcionando

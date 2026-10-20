@@ -78,3 +78,28 @@ def resumen_calidad(df: pd.DataFrame, metadatos: Metadatos) -> dict:
         "duplicados": len(duplicados),
         "faltantes": faltantes.to_dict()["faltantes"],
     }
+
+def normalizar_serie_fechas(df: pd.DataFrame) -> pd.DataFrame:
+    """Normaliza un DataFrame con columna 'fecha' (datetime).
+
+    Para fuentes como Banxico que devuelven fechas completas en lugar de años.
+    Agrega una columna 'anio' (entero) a partir de 'fecha'.
+    """
+    if df.empty:
+        raise ValueError("El DataFrame está vacío; no se puede normalizar.")
+
+    df = df.copy()
+
+    if "fecha" not in df.columns:
+        raise ValueError(
+            f"El DataFrame no tiene la columna 'fecha'. "
+            f"Columnas actuales: {list(df.columns)}"
+        )
+
+    df["fecha"] = pd.to_datetime(df["fecha"], errors="coerce")
+    df = df.dropna(subset=["fecha"]).sort_values("fecha").reset_index(drop=True)
+
+    df["anio"] = df["fecha"].dt.year
+    df["valor"] = pd.to_numeric(df["valor"], errors="coerce")
+
+    return df
