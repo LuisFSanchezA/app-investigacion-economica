@@ -48,12 +48,99 @@ seccion = st.sidebar.radio(
 
 # ---- Secciones ---- 
 
-if seccion == "Pregunta general":
+if seccion == "Pregunta":
     st.header("❓ Pregunta de investigación")
     st.write(
-        "Aquí definirás y refinarás tu pregunta general, la guía de tu investigación"
+        "Define tu tema, recibe sugerencias de preguntas y construye un borrador de protocolo."
     )
-    st.info("Esta sección sigue desarrollándose")
+
+    # --- Paso 1: Tema ---
+    st.subheader("1. Escribe tu tema de interés")
+    tema = st.text_area(
+        "Puede ser amplio al inicio:",
+        placeholder="Ej: informalidad laboral en México",
+        height=100,
+        key="tema_input",
+    )
+
+    # --- Paso 2: Sugerir preguntas ---
+    if st.button("Sugerir preguntas de investigación", key="btn_preguntas"):
+        if not tema.strip():
+            st.warning("Primero escribe un tema.")
+        else:
+            with st.spinner("Generando sugerencias (puede tomar 10-20 segundos)..."):
+                try:
+                    from src.ai import sugerir_preguntas
+                    sugerencias = sugerir_preguntas(tema)
+                    st.session_state["preguntas_sugeridas"] = sugerencias
+                    st.session_state["error_ia"] = None
+                except (ValueError, ConnectionError) as e:
+                    st.session_state["error_ia"] = str(e)
+
+    if st.session_state.get("error_ia"):
+        st.error(f"Error: {st.session_state['error_ia']}")
+
+    if st.session_state.get("preguntas_sugeridas"):
+        st.markdown(st.session_state["preguntas_sugeridas"])
+
+    # --- Paso 3: Elegir pregunta ---
+    st.subheader("2. Elige y refina tu pregunta")
+    pregunta_final = st.text_area(
+        "Escribe la pregunta que vas a investigar:",
+        height=100,
+        key="pregunta_final",
+    )
+
+    # --- Paso 4: Sugerir objetivos ---
+    if st.button("Sugerir objetivos", key="btn_objetivos"):
+        if not pregunta_final.strip():
+            st.warning("Primero escribe tu pregunta de investigación.")
+        else:
+            with st.spinner("Generando objetivos..."):
+                try:
+                    from src.ai import sugerir_objetivos
+                    objetivos = sugerir_objetivos(pregunta_final)
+                    st.session_state["objetivos_sugeridos"] = objetivos
+                    st.session_state["error_ia"] = None
+                except (ValueError, ConnectionError) as e:
+                    st.session_state["error_ia"] = str(e)
+
+    if st.session_state.get("objetivos_sugeridos"):
+        st.markdown(st.session_state["objetivos_sugeridos"])
+
+    # --- Paso 5: Generar protocolo ---
+    st.subheader("3. Generar borrador de protocolo")
+    st.caption(
+        "⚠️ El protocolo es un **borrador** generado con IA. "
+        "Debes revisarlo, corregirlo y verificar las fuentes antes de usarlo."
+    )
+
+    if st.button("Generar borrador de protocolo", key="btn_protocolo"):
+        if not tema.strip() or not pregunta_final.strip():
+            st.warning("Necesitas tema y pregunta para generar el protocolo.")
+        else:
+            with st.spinner("Generando protocolo (puede tomar 20-40 segundos)..."):
+                try:
+                    from src.ai import generar_protocolo
+                    objetivos_actuales = st.session_state.get("objetivos_sugeridos", "")
+                    protocolo = generar_protocolo(
+                        tema=tema,
+                        pregunta=pregunta_final,
+                        objetivos=objetivos_actuales,
+                    )
+                    st.session_state["protocolo"] = protocolo
+                    st.session_state["error_ia"] = None
+                except (ValueError, ConnectionError) as e:
+                    st.session_state["error_ia"] = str(e)
+
+    if st.session_state.get("protocolo"):
+        st.markdown(st.session_state["protocolo"])
+        st.download_button(
+            "Descargar protocolo (Markdown)",
+            data=st.session_state["protocolo"],
+            file_name="protocolo_borrador.md",
+            mime="text/markdown",
+        )
 
 elif seccion == "Análisis de Literatura":
     st.header("📚 Análisis de Literatura")
