@@ -68,3 +68,19 @@ Ampliar las fuentes de datos e integrar la sección de "Pregunta" con asistencia
 - Documentar el uso de IA en el README (declaración de uso).
 - Evaluar si conviene migrar a DeepSeek para producción (más barato, misma calidad).
 - Seguir con Banxico/INEGI como fuentes adicionales.
+
+## Martes 20 de octubre de 2026 
+- Se creó `tests/test_ai.py` con 9 pruebas automatizadas usando mock de Gemini.
+- Pruebas implementadas:
+  1. `test_sugerir_preguntas_exitoso`: verifica que se devuelve texto.
+  2. `test_sugerir_preguntas_tema_vacio`: verifica ValueError con tema vacío.
+  3. `test_sugerir_objetivos_exitoso`: verifica que se devuelve texto.
+  4. `test_sugerir_objetivos_pregunta_vacia`: verifica ValueError con pregunta vacía.
+  5. `test_generar_protocolo_exitoso`: verifica que se devuelve texto.
+  6. `test_generar_protocolo_faltan_datos`: verifica ValueError sin tema o pregunta.
+  7. `test_error_saturacion`: verifica que un 503 se convierte en ConnectionError.
+  8. `test_error_modelo_no_disponible`: verifica que un 404 se convierte en ConnectionError.
+  9. `test_sin_api_key`: verifica ValueError si falta GEMINI_API_KEY.
+- Se eliminó `test_ai.py` de la raíz (script temporal) para evitar conflictos con pytest.
+- Resultado: 22 pruebas aprobadas en total (9 + 6 + 7) en 12.82 segundos.
+- El CI de GitHub Actions ahora también valida el módulo de IA (con mock, sin necesidad de API key real).
