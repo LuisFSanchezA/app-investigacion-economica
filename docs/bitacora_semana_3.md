@@ -84,3 +84,28 @@ Ampliar las fuentes de datos e integrar la sección de "Pregunta" con asistencia
 - Se eliminó `test_ai.py` de la raíz (script temporal) para evitar conflictos con pytest.
 - Resultado: 22 pruebas aprobadas en total (9 + 6 + 7) en 12.82 segundos.
 - El CI de GitHub Actions ahora también valida el módulo de IA (con mock, sin necesidad de API key real).
+
+## Martes 20 de octubre de 2026 (tarde)
+- Se integró el Banco de México (Banxico) como segunda fuente de datos.
+- Se obtuvo token gratuito de la API SIE de Banxico.
+- Se configuró `BANXICO_TOKEN` en `.streamlit/secrets.toml` (excluido de Git).
+- Se creó `src/fuentes/banxico.py` con la clase `Banxico` que implementa `FuenteBase`.
+- Catálogo de series disponibles (`SERIES`):
+  - `SF43718` — Tipo de cambio FIX (MXN/USD)
+  - `SF283` — Reservas internacionales (millones de USD)
+  - `SR14849` — Tasa de interés objetivo (%)
+  - `SP68257` — Inflación anual (%)
+  - `SL11295` — Tasa de desempleo (%)
+- El método `consultar()`:
+  - Hace GET a la API con el token en el header `Bmx-Token`.
+  - Maneja errores 401 (token inválido), HTTP general, timeout, conexión.
+  - Convierte fechas de formato `DD/MM/YYYY` a datetime.
+  - Convierte valores `N/E` a `None`.
+  - Limpia espacios múltiples en títulos de series.
+- Se probó con datos reales: tipo de cambio FIX 2024 (251 observaciones).
+- Se creó `tests/test_banxico.py` con 10 pruebas usando mock.
+- Resultado: 32 pruebas aprobadas en total (9 + 10 + 6 + 7) en 13.11 segundos.
+
+## Pendientes
+- Integrar Banxico en la sección "Fuentes de datos" de la app.
+- Agregar un selector de fuente (Banco Mundial / Banxico).

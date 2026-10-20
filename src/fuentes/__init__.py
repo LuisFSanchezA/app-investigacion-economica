@@ -9,6 +9,7 @@ from src.fuentes.normalizacion import (
     resumen_calidad,
 )
 from src.fuentes.world_bank import BancoMundial, INDICADORES, PAISES
+from src.fuentes.banxico import Banxico, SERIES
 
 __all__ = [
     "FuenteBase",
@@ -20,4 +21,6 @@ __all__ = [
     "BancoMundial",
     "INDICADORES",
     "PAISES",
+    "Banxico",
+    "SERIES",
 ]
