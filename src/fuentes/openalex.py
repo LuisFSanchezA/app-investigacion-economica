@@ -2,8 +2,10 @@
 
 Documentación: https://docs.openalex.org/
 
-OpenAlex no requiere autenticación. Se recomienda enviar un email en el
-parámetro `mailto` para entrar al "polite pool" (mejor rate limit).
+OpenAlex no requiere autenticación, pero se recomienda:
+- Enviar un email en `mailto` para el "polite pool".
+- Usar `OPENALEX_API_KEY` (gratis en https://openalex.org/rest-api)
+  para evitar la pausa de búsquedas anónimas.
 
 La API devuelve JSON con:
 - `meta`: información de paginación (count, page, per_page, next_cursor)
@@ -11,13 +13,13 @@ La API devuelve JSON con:
 
 Estrategia de paginación:
 - OpenAlex permite hasta `per_page=200`.
-- Para corpus grandes se usa `cursor=*` (cursor-based pagination).
-- Aquí usamos cursor-based para evitar el límite de 10,000 resultados
-  del page-based.
+- Usamos cursor-based pagination (cursor=*) para evitar el límite
+  de 10,000 resultados del page-based.
 """
 
 from __future__ import annotations
 
+import os
 import time
 from typing import Any, Iterable
 
@@ -30,8 +32,7 @@ from src.fuentes.metadatos import Metadatos
 URL_BASE = "https://api.openalex.org/works"
 
 # Email de cortesía para el "polite pool" de OpenAlex.
-# Cámbialo por tu correo real si quieres mejores límites.
-EMAIL_CORTESIA = "investigacion-economica@example.com"
+EMAIL_CORTESIA = "investigacioneconomica0@gmail.com"
 
 # Máximo de resultados por página permitido por OpenAlex
 PER_PAGE = 200
@@ -39,6 +40,38 @@ PER_PAGE = 200
 # Límite de seguridad para no descargar corpus gigantes por accidente
 MAX_RESULTADOS = 2000
 
+
+# ---------------------------------------------------------------------------
+# Lectura de credenciales (secrets > env > fallback)
+# ---------------------------------------------------------------------------
+
+def _get_api_key() -> str | None:
+    """Lee OPENALEX_API_KEY de secrets o env, si existe."""
+    try:
+        import streamlit as st
+        key = st.secrets.get("OPENALEX_API_KEY")
+        if key:
+            return key
+    except Exception:
+        pass
+    return os.environ.get("OPENALEX_API_KEY")
+
+
+def _get_email() -> str:
+    """Lee OPENALEX_EMAIL de secrets o usa fallback."""
+    try:
+        import streamlit as st
+        email = st.secrets.get("OPENALEX_EMAIL")
+        if email:
+            return email
+    except Exception:
+        pass
+    return os.environ.get("OPENALEX_EMAIL", EMAIL_CORTESIA)
+
+
+# ---------------------------------------------------------------------------
+# Conector
+# ---------------------------------------------------------------------------
 
 class OpenAlex(FuenteBase):
     """Conector para la API pública de OpenAlex."""
@@ -94,7 +127,6 @@ class OpenAlex(FuenteBase):
         if not kws:
             raise ValueError("Debes proporcionar al menos una palabra clave.")
 
-        # Validar rango de años
         if desde is not None and hasta is not None and desde > hasta:
             raise ValueError(
                 f"El año inicial ({desde}) no puede ser mayor que el final ({hasta})."
@@ -102,7 +134,6 @@ class OpenAlex(FuenteBase):
 
         limite = max(1, min(int(limite), MAX_RESULTADOS))
 
-        # Construir parámetros base
         search = " ".join(kws)
         filtros: list[str] = []
 
@@ -123,7 +154,6 @@ class OpenAlex(FuenteBase):
 
         filtro_str = ",".join(filtros) if filtros else None
 
-        # Descargar con paginación por cursor
         resultados, url_consulta = self._descargar_paginado(
             search=search,
             filtro=filtro_str,
@@ -155,7 +185,7 @@ class OpenAlex(FuenteBase):
         )
 
         return df, metadatos
-    
+
     def consultar(
         self,
         indicador: str,
@@ -166,18 +196,15 @@ class OpenAlex(FuenteBase):
         """Compatibilidad con `FuenteBase`.
 
         OpenAlex no maneja indicadores ni países como World Bank/Banxico.
-        Aquí interpretamos `indicador` como la consulta de búsqueda textual
-        y delegamos en `buscar()`. `pais` se ignora (OpenAlex es
-        internacional).
-
-        Este método existe solo para satisfacer la interfaz abstracta de
-        `FuenteBase`; la UI de Literatura usará `buscar()` directamente.
+        Interpretamos `indicador` como la consulta de búsqueda textual
+        y delegamos en `buscar()`.
         """
         return self.buscar(
             keywords=[indicador],
             desde=periodo_inicio,
             hasta=periodo_fin,
         )
+
     # ------------------------------------------------------------------
     # Internos
     # ------------------------------------------------------------------
@@ -188,10 +215,7 @@ class OpenAlex(FuenteBase):
         filtro: str | None,
         limite: int,
     ) -> tuple[list[dict[str, Any]], str]:
-        """Descarga resultados usando cursor-based pagination.
-
-        Devuelve (lista_de_resultados, url_de_la_primera_consulta).
-        """
+        """Descarga resultados usando cursor-based pagination."""
         resultados: list[dict[str, Any]] = []
         cursor = "*"
         url_primera = ""
@@ -201,16 +225,17 @@ class OpenAlex(FuenteBase):
                 "search": search,
                 "per-page": min(PER_PAGE, limite - len(resultados)),
                 "cursor": cursor,
-                "mailto": EMAIL_CORTESIA,
+                "mailto": _get_email(),
             }
+            api_key = _get_api_key()
+            if api_key:
+                params["api_key"] = api_key
             if filtro:
                 params["filter"] = filtro
 
             url = URL_BASE
             if not url_primera:
-                # Guardamos la URL "reproducible" (sin cursor) para metadatos
                 from urllib.parse import urlencode
-
                 url_primera = f"{URL_BASE}?{urlencode(params)}"
 
             try:
@@ -225,6 +250,13 @@ class OpenAlex(FuenteBase):
                     "Verifica tu conexión a internet."
                 )
 
+            if respuesta.status_code == 503:
+                raise ConnectionError(
+                    "OpenAlex está temporalmente saturado (503). "
+                    "Si esto es frecuente, configura OPENALEX_API_KEY "
+                    "en .streamlit/secrets.toml (gratis en "
+                    "https://openalex.org/rest-api)."
+                )
             if respuesta.status_code != 200:
                 raise ConnectionError(
                     f"OpenAlex respondió con código {respuesta.status_code}."
@@ -246,14 +278,12 @@ class OpenAlex(FuenteBase):
 
             resultados.extend(lote)
 
-            # Siguiente cursor
             meta = datos.get("meta", {})
             siguiente = meta.get("next_cursor")
             if not siguiente:
                 break
             cursor = siguiente
 
-            # Cortesía con la API: pequeña pausa entre páginas
             time.sleep(0.2)
 
         return resultados, url_primera
@@ -263,7 +293,6 @@ class OpenAlex(FuenteBase):
         registros: list[dict[str, Any]] = []
 
         for r in resultados:
-            # Autores
             autores = [
                 a.get("author", {}).get("display_name", "")
                 for a in (r.get("authorships") or [])
@@ -271,7 +300,6 @@ class OpenAlex(FuenteBase):
             ]
             autores = [a for a in autores if a]
 
-            # Instituciones (únicas, sin vacías)
             instituciones: list[str] = []
             paises: list[str] = []
             for a in r.get("authorships") or []:
@@ -283,12 +311,10 @@ class OpenAlex(FuenteBase):
                     if pais and pais not in paises:
                         paises.append(pais)
 
-            # Fuente (revista, libro, etc.)
             primary = r.get("primary_location") or {}
             source = primary.get("source") or {}
             fuente_nombre = source.get("display_name") or ""
 
-            # Conceptos (top 10 por score)
             conceptos_raw = r.get("concepts") or []
             conceptos_ordenados = sorted(
                 conceptos_raw,
@@ -301,14 +327,10 @@ class OpenAlex(FuenteBase):
                 if c.get("display_name")
             ]
 
-            # Open access
             oa = r.get("open_access") or {}
             es_oa = bool(oa.get("is_oa"))
 
-            # Idioma
             idioma = r.get("language") or ""
-
-            # Referencias
             referencias = r.get("referenced_works") or []
 
             registros.append(
@@ -336,15 +358,10 @@ class OpenAlex(FuenteBase):
 
     @staticmethod
     def _reconstruir_resumen(r: dict[str, Any]) -> str:
-        """Reconstruye el resumen desde el índice invertido de OpenAlex.
-
-        OpenAlex devuelve `abstract_inverted_index` como un dict
-        {palabra: [posiciones]}. Lo convertimos a texto plano.
-        """
+        """Reconstruye el resumen desde el índice invertido de OpenAlex."""
         inv = r.get("abstract_inverted_index")
         if not inv:
             return ""
-        # Construir lista (posición, palabra)
         pares: list[tuple[int, str]] = []
         for palabra, posiciones in inv.items():
             for pos in posiciones:
@@ -354,19 +371,12 @@ class OpenAlex(FuenteBase):
 
     @staticmethod
     def _deduplicar(df: pd.DataFrame) -> pd.DataFrame:
-        """Deduplica por DOI (si existe) o por título normalizado.
-
-        Reglas:
-        - Si hay DOI, se usa como clave.
-        - Si no hay DOI, se usa título en minúsculas sin espacios extra.
-        - Se conserva la primera ocurrencia.
-        """
+        """Deduplica por DOI (si existe) o por título normalizado."""
         if df.empty:
             return df
 
         df = df.copy()
 
-        # Clave de deduplicación
         doi_norm = df["doi"].fillna("").str.lower().str.strip()
         titulo_norm = (
             df["titulo"]
@@ -378,7 +388,6 @@ class OpenAlex(FuenteBase):
         clave = doi_norm.where(doi_norm != "", titulo_norm)
         df["_clave_dedup"] = clave
 
-        # Conservar primera ocurrencia (y descartar claves vacías)
         df = df[df["_clave_dedup"] != ""]
         df = df.drop_duplicates(subset="_clave_dedup", keep="first")
         df = df.drop(columns="_clave_dedup").reset_index(drop=True)

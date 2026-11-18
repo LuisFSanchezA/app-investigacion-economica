@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
+from app.seccion_literatura import render as render_literatura
 from src.data_validation import validate_dataframe
 from src.fuentes import (
     BancoMundial,
@@ -146,12 +147,8 @@ if seccion == "Pregunta":
             key="btn_descargar_protocolo",
         )
 
-elif seccion == "Análisis de Literatura":
-    st.header("📚 Análisis de Literatura")
-    st.write(
-        "Aquí analizarás y organizarás las fuentes académicas para tu investigación"
-    )
-    st.info("Esta sección sigue desarrollándose")
+elif seccion == "Literatura":
+    render_literatura()
 
 elif seccion == "Fuentes de datos":
     st.header("🌐 Fuentes de datos")

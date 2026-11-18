@@ -8,6 +8,8 @@ from src.ai.asistente import (
 from src.ai.asistente_literatura import (
     sugerir_keywords,
     evaluar_corpus,
+    sugerir_keywords_cached,
+    evaluar_corpus_cached,
 )
 
 __all__ = [
@@ -16,4 +18,6 @@ __all__ = [
     "generar_protocolo",
     "sugerir_keywords",
     "evaluar_corpus",
+    "sugerir_keywords_cached",
+    "evaluar_corpus_cached",
 ]

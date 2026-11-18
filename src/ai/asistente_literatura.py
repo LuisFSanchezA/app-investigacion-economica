@@ -14,6 +14,7 @@ import time
 from typing import Any
 
 import pandas as pd
+import streamlit as st
 
 from src.ai.config import get_modelo
 from src.ai.prompts_literatura import PROMPT_EVALUAR_CORPUS, PROMPT_KEYWORDS
@@ -51,7 +52,10 @@ def _get_cliente():
             ".streamlit/secrets.toml o como variable de entorno."
         )
 
-    return genai.Client(api_key=api_key)
+    return genai.Client(
+        api_key=api_key,
+        http_options={"timeout": 30000},  # 30s máximo
+    )
 
 
 def _generar_con_reintentos(prompt: str) -> str:
@@ -184,3 +188,23 @@ def evaluar_corpus(pregunta: str, corpus_df: pd.DataFrame) -> str:
         pregunta=pregunta.strip(),
     )
     return _generar_con_reintentos(prompt)
+
+# ---------------------------------------------------------------------------
+# Versiones cacheadas para la UI
+# ---------------------------------------------------------------------------
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def sugerir_keywords_cached(tema: str, pregunta: str = "") -> str:
+    """Versión cacheada de sugerir_keywords (24h)."""
+    return sugerir_keywords(tema, pregunta)
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def evaluar_corpus_cached(pregunta: str, corpus_json: str) -> str:
+    """Versión cacheada de evaluar_corpus (1h).
+
+    Recibe el corpus como JSON string para que sea hashable.
+    """
+    import json
+    corpus_df = pd.DataFrame(json.loads(corpus_json))
+    return evaluar_corpus(pregunta, corpus_df)

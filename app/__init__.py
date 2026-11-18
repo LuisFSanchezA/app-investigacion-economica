@@ -1,0 +1,1 @@
+"""Módulo de secciones de la aplicación Streamlit."""
