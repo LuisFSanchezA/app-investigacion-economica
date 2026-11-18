@@ -15,7 +15,7 @@ from src.ai.prompts import (
 )
 
 
-MODELO_POR_DEFECTO = "gemini-3.8-flash"
+from src.ai.config import MODELO_POR_DEFECTO
 
 
 def _get_client() -> genai.Client:
