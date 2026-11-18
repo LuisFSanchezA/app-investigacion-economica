@@ -11,6 +11,7 @@ from src.fuentes.normalizacion import (
 )
 from src.fuentes.world_bank import BancoMundial, INDICADORES, PAISES
 from src.fuentes.banxico import Banxico, SERIES
+from src.fuentes.openalex import OpenAlex
 
 __all__ = [
     "FuenteBase",
@@ -25,4 +26,5 @@ __all__ = [
     "PAISES",
     "Banxico",
     "SERIES",
+    "OpenAlex",
 ]
