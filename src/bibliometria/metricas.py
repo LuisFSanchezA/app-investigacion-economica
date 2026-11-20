@@ -160,7 +160,8 @@ def top_instituciones(df: pd.DataFrame, n: int = 10) -> pd.DataFrame:
     for v in df["instituciones"].fillna(""):
         for inst in set(_separar_lista(v)):
             contador[inst] += 1
-    filas = [{"institucion": k, "n_trabajos": v} for k, v in contador.most_common(n)]
+        items = sorted(contador.items(), key=lambda kv: (-kv[1], kv[0]))[:n]
+    filas = [{"institucion": k, "n_trabajos": v} for k, v in items]
     return pd.DataFrame(filas)
 
 
