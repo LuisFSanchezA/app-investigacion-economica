@@ -2,6 +2,7 @@
 
 from src.fuentes.base import FuenteBase
 from src.fuentes.metadatos import Metadatos
+from src.fuentes.tesis import Tesis
 from src.fuentes.normalizacion import (
     normalizar_serie,
     normalizar_serie_fechas,
@@ -27,4 +28,5 @@ __all__ = [
     "Banxico",
     "SERIES",
     "OpenAlex",
+    "Tesis",
 ]

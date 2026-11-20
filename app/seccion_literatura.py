@@ -10,9 +10,11 @@ import json
 
 import pandas as pd
 import streamlit as st
+import plotly.express as px
 
 from src.bibliometria import graficas, graficas_redes, metricas, redes
 from src.bibliometria import metricas, graficas
+from src.fuentes.tesis import Tesis
 from src.ai import (
     clasificar_papers,
     detectar_vacios,
@@ -661,6 +663,163 @@ def _render_evaluar():
             key="lit_btn_export_eval",
         )
 
+def _render_tesis():
+    st.subheader("🎓 Tesis académicas")
+    st.markdown(
+        "Busca tesis en OpenAlex y accede a repositorios especializados "
+        "(TesiuNAM, Dialnet, RIUD) con la query ya armada."
+    )
+    st.caption(
+        "💡 Inspirado en [NodOS](https://nodosmap.com), pero adaptado a "
+        "búsqueda + enlaces. El mapa semántico vendrá después."
+    )
+
+    # --- Keywords ---
+    pregunta = st.session_state.get("pregunta_final", "")
+    keywords_default = ""
+    if pregunta:
+        keywords_default = pregunta[:100]
+
+    keywords_texto = st.text_area(
+        "Keywords para buscar tesis (una por línea):",
+        value=st.session_state.get("lit_tesis_keywords", keywords_default),
+        height=80,
+        key="lit_tesis_keywords",
+    )
+
+    # --- Filtros ---
+    col1, col2 = st.columns(2)
+    with col1:
+        desde = st.number_input(
+            "Año desde:", min_value=1900, max_value=2026, value=2010,
+            key="lit_tesis_desde",
+        )
+    with col2:
+        hasta = st.number_input(
+            "Año hasta:", min_value=1900, max_value=2026, value=2026,
+            key="lit_tesis_hasta",
+        )
+
+    # --- Enlaces prefabricados ---
+    st.markdown("### 🔗 Buscar en repositorios especializados")
+    st.caption(
+        "Haz clic en cada repositorio para buscar manualmente. "
+        "La query ya está armada."
+    )
+    kws = [k.strip() for k in keywords_texto.splitlines() if k.strip()]
+    if kws:
+        enlaces = Tesis.enlaces_prefabricados(kws)
+        descripciones = Tesis.descripcion_repositorios()
+        cols = st.columns(3)
+        for i, (nombre, url) in enumerate(enlaces.items()):
+            with cols[i]:
+                st.markdown(f"**{nombre}**")
+                st.caption(descripciones.get(nombre, ""))
+                st.link_button(f"Abrir {nombre}", url, key=f"lit_tesis_link_{nombre}")
+    else:
+        st.caption("Escribe al menos una keyword para generar los enlaces.")
+
+    # --- Botón buscar en OpenAlex ---
+    if st.button("🔍 Buscar tesis en OpenAlex", key="lit_btn_buscar_tesis", type="primary"):
+        if not kws:
+            st.warning("Escribe al menos una keyword.")
+        elif desde > hasta:
+            st.warning("El año inicial no puede ser mayor que el final.")
+        else:
+            with st.spinner(f"Buscando tesis ({len(kws)} keywords)..."):
+                try:
+                    conector = Tesis()
+                    df, meta = conector.buscar(
+                        keywords=kws,
+                        desde=int(desde),
+                        hasta=int(hasta),
+                        limite=100,
+                    )
+                    st.session_state["lit_tesis_resultados"] = df
+                    st.session_state["lit_tesis_meta"] = meta
+                    st.session_state["lit_tesis_error"] = None
+                except (ValueError, ConnectionError) as e:
+                    st.session_state["lit_tesis_resultados"] = None
+                    st.session_state["lit_tesis_error"] = str(e)
+
+    if st.session_state.get("lit_tesis_error"):
+        st.error(f"⚠️ {st.session_state['lit_tesis_error']}")
+
+    # --- Resultados ---
+    df = st.session_state.get("lit_tesis_resultados")
+    if df is not None and not df.empty:
+        st.success(f"✅ {len(df)} tesis encontradas en OpenAlex.")
+
+        # Métricas
+        st.markdown("### Resumen")
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Tesis", len(df))
+        anios = pd.to_numeric(df["anio"], errors="coerce").dropna()
+        c2.metric("Año mín.", int(anios.min()) if not anios.empty else "—")
+        c3.metric("Año máx.", int(anios.max()) if not anios.empty else "—")
+
+        # Tesis por año
+        if not anios.empty:
+            st.markdown("### Tesis por año")
+            df_anio = (
+                df.assign(anio=anios.astype(int))
+                .groupby("anio")
+                .size()
+                .reset_index(name="n_tesis")
+            )
+            fig = px.bar(
+                df_anio, x="anio", y="n_tesis",
+                title="Tesis por año",
+                labels={"anio": "Año", "n_tesis": "Nº de tesis"},
+            )
+            st.plotly_chart(fig, use_container_width=True, key="lit_graf_tesis_anio")
+
+        # Tabla con enlaces
+        st.markdown("### Tesis encontradas")
+        columnas = ["titulo", "autores", "anio", "instituciones", "enlace_tesunam", "enlace_dialnet"]
+        columnas = [c for c in columnas if c in df.columns]
+        st.dataframe(
+            df[columnas],
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "titulo": st.column_config.TextColumn("Título", width="large"),
+                "autores": st.column_config.TextColumn("Autores", width="medium"),
+                "anio": st.column_config.NumberColumn("Año", width="small"),
+                "instituciones": st.column_config.TextColumn("Institución", width="medium"),
+                "enlace_tesunam": st.column_config.LinkColumn("TesiuNAM", display_text="Abrir"),
+                "enlace_dialnet": st.column_config.LinkColumn("Dialnet", display_text="Abrir"),
+            },
+        )
+
+        # Exportar
+        csv_bytes = df.to_csv(index=False).encode("utf-8")
+        st.download_button(
+            "⬇️ Exportar tesis (CSV)",
+            data=csv_bytes,
+            file_name="tesis_openalex.csv",
+            mime="text/csv",
+            key="lit_btn_export_tesis",
+        )
+
+    # --- Nota pedagógica ---
+    with st.expander("📖 ¿Por qué buscar tesis?"):
+        st.markdown(
+            """
+            Las tesis son **literatura gris**: no pasan por revisión por pares
+            como los artículos, pero son valiosas porque:
+
+            - **Muestran el estado del arte local**: qué se está investigando
+            en tu universidad o país.
+            - **Aportan metodologías aplicadas**: cómo otros resolvieron
+            problemas similares.
+            - **Revelan vacíos**: temas que nadie ha tocado aún.
+
+            **Advertencia:** una tesis no es una fuente revisada por pares.
+            Úsala como contexto, no como evidencia definitiva.
+            """
+        )
+
 
 # ---------------------------------------------------------------------------
 # Render principal
@@ -676,8 +835,24 @@ def render():
         "y construye tu corpus bibliográfico."
     )
 
-    tab_buscar, tab_biblio, tab_redes, tab_eval, tab_queries, tab_corpus = st.tabs(
-        ["🔎 Buscar", "📊 Bibliometría", "🕸️ Redes", "🤖 Evaluar", "🔧 Queries", "📚 Corpus"]
+    (
+        tab_buscar,
+        tab_biblio,
+        tab_redes,
+        tab_eval,
+        tab_tesis,
+        tab_queries,
+        tab_corpus,
+    ) = st.tabs(
+        [
+            "🔎 Buscar",
+            "📊 Bibliometría",
+            "🕸️ Redes",
+            "🤖 Evaluar",
+            "🎓 Tesis",
+            "🔧 Queries",
+            "📚 Corpus",
+        ]
     )
     with tab_buscar:
         _render_buscar()
@@ -687,6 +862,8 @@ def render():
         _render_redes()
     with tab_eval:
         _render_evaluar()
+    with tab_tesis:
+        _render_tesis()
     with tab_queries:
         _render_queries()
     with tab_corpus:
