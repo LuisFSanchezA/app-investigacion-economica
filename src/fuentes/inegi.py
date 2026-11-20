@@ -1,30 +1,7 @@
 """Conector para la API de Indicadores del INEGI.
 
-Documentación: https://www.inegi.org.mx/servicios/api_indicadores.html
-
-Estructura de la URL (según el portal de INEGI):
-https://www.inegi.org.mx/app/api/indicadores/desarrolladores/jsonxml/INDICATOR/{ids}/{lang}/{area}/{recent}/{type}/false/BISE/2.0/{token}?type=json
-
-Parámetros:
-- ids: IDs de indicadores separados por coma (ej. "756261").
-- lang: "es" o "en".
-- area: "0" para nacional, "07000001" para Aguascalientes, etc.
-- recent: "true" (último) o "false" (todos).
-- type: "BIE-BISE" (Banco de Indicadores) o "BISE" (Banco de Indicadores Sectoriales).
-
-Respuesta:
-{
-  "Header": {...},
-  "Series": [
-    {
-      "INDICADOR": "756261",
-      "OBSERVATIONS": [
-        {"TIME_PERIOD": "2024", "OBS_VALUE": "...", "COBER_GEO": "0"},
-        ...
-      ]
-    }
-  ]
-}
+Documentación:
+https://www.inegi.org.mx/servicios/api_indicadores.html
 """
 
 from __future__ import annotations
@@ -38,11 +15,13 @@ import requests
 from src.fuentes.base import FuenteBase
 from src.fuentes.metadatos import Metadatos
 
-URL_BASE = "https://www.inegi.org.mx/app/api/indicadores/desarrolladores/jsonxml/INDICATOR"
 
-# Catálogo mínimo de indicadores de INEGI
-# NOTA: los códigos son los que INEGI usa en su API. Verifica cada uno en
-# https://www.inegi.org.mx/servicios/api_indicadores.html
+URL_BASE = (
+    "https://www.inegi.org.mx/app/api/indicadores/"
+    "desarrolladores/jsonxml/INDICATOR"
+)
+
+# Catálogo mínimo de indicadores de INEGI.
 INDICADORES_INEGI = {
     "756261": {
         "nombre": "PIB nacional (millones de pesos)",
@@ -76,7 +55,6 @@ INDICADORES_INEGI = {
     },
 }
 
-# Códigos de entidad federativa (COBER_GEO) para filtrar
 ENTIDADES = {
     "0": "Nacional",
     "01": "Aguascalientes",
@@ -115,22 +93,72 @@ ENTIDADES = {
 
 
 def _get_token() -> str:
-    """Lee el token de INEGI de secrets o env."""
+    """Obtiene el token de INEGI desde Streamlit secrets o el entorno."""
     try:
         import streamlit as st
+
         token = st.secrets.get("INEGI_TOKEN")
         if token:
-            return token
+            return str(token)
     except Exception:
+        # La aplicación también puede ejecutarse fuera de Streamlit.
         pass
+
     token = os.environ.get("INEGI_TOKEN")
     if token:
         return token
+
     raise ValueError(
-        "No se encontró INEGI_TOKEN. Configúralo en .streamlit/secrets.toml "
-        "o como variable de entorno. Obtén tu token gratis en "
+        "No se encontró INEGI_TOKEN. Configúralo en "
+        ".streamlit/secrets.toml o como variable de entorno. "
+        "Obtén tu token en "
         "https://www.inegi.org.mx/servicios/api_indicadores.html"
     )
+
+
+def _obtener_observaciones(datos: Any, indicador: str) -> list[dict]:
+    """Valida la respuesta y admite ambas variantes del nombre del campo.
+
+    La documentación de la API utiliza OBSERVATIONS; algunos consumidores,
+    mocks o respuestas transformadas utilizan OBSERVACIONES.
+    """
+    if not isinstance(datos, dict) or "Series" not in datos:
+        raise ValueError(
+            "La respuesta de INEGI no tiene el formato esperado."
+        )
+
+    series = datos["Series"]
+    if not isinstance(series, list) or not series:
+        raise ValueError(f"No hay datos para el indicador {indicador}.")
+
+    primera_serie = series[0]
+    if not isinstance(primera_serie, dict):
+        raise ValueError(
+            "La respuesta de INEGI no tiene el formato esperado."
+        )
+
+    if "OBSERVATIONS" in primera_serie:
+        observaciones = primera_serie["OBSERVATIONS"]
+    elif "OBSERVACIONES" in primera_serie:
+        observaciones = primera_serie["OBSERVACIONES"]
+    else:
+        raise ValueError(
+            "La respuesta de INEGI no tiene el formato esperado: "
+            "no se encontró OBSERVATIONS ni OBSERVACIONES."
+        )
+
+    if not isinstance(observaciones, list):
+        raise ValueError(
+            "La respuesta de INEGI no tiene el formato esperado: "
+            "las observaciones no son una lista."
+        )
+
+    if not observaciones:
+        raise ValueError(
+            f"No hay observaciones para el indicador {indicador}."
+        )
+
+    return observaciones
 
 
 class INEGI(FuenteBase):
@@ -150,21 +178,16 @@ class INEGI(FuenteBase):
     ) -> tuple[pd.DataFrame, Metadatos]:
         """Consulta un indicador de INEGI.
 
-        Parámetros
-        ----------
-        indicador : str
-            Código del indicador (ej. '756261' para PIB).
-        pais : str
-            Ignorado (INEGI es solo México). Se conserva por compatibilidad.
-        periodo_inicio, periodo_fin : int, opcional
-            Rango de años (se filtra en el DataFrame resultante).
-        entidad : str
-            Código de entidad federativa (COBER_GEO): '0' = nacional,
-            '01' = Aguascalientes, ..., '32' = Zacatecas.
+        Args:
+            indicador: Código del indicador incluido en el catálogo.
+            pais: Se conserva por compatibilidad; INEGI corresponde a México.
+            periodo_inicio: Año inicial inclusivo.
+            periodo_fin: Año final inclusivo.
+            entidad: Código de cobertura geográfica; "0" representa el total
+                nacional y "01" a "32" las entidades federativas.
 
-        Devuelve
-        -------
-        tuple[pd.DataFrame, Metadatos]
+        Returns:
+            Una tupla con el DataFrame de observaciones y sus metadatos.
         """
         if indicador not in INDICADORES_INEGI:
             raise ValueError(
@@ -179,25 +202,26 @@ class INEGI(FuenteBase):
 
         url = (
             f"{URL_BASE}/{indicador}/es/{area}/true/{tipo}/2.0/{token}"
-            f"?type=json"
+            "?type=json"
         )
 
         try:
             respuesta = requests.get(url, timeout=45)
-        except requests.exceptions.Timeout:
+        except requests.exceptions.Timeout as exc:
             raise ConnectionError(
                 "La consulta a INEGI excedió el tiempo de espera."
-            )
-        except requests.exceptions.ConnectionError:
+            ) from exc
+        except requests.exceptions.ConnectionError as exc:
             raise ConnectionError(
                 "No se pudo conectar con INEGI. Verifica tu conexión."
-            )
+            ) from exc
 
         if respuesta.status_code == 401:
             raise ConnectionError(
                 "El token de INEGI no es válido o expiró. "
-                "Verifica tu token en .streamlit/secrets.toml"
+                "Verifica tu token en .streamlit/secrets.toml."
             )
+
         if respuesta.status_code != 200:
             raise ConnectionError(
                 f"INEGI respondió con código {respuesta.status_code}."
@@ -205,56 +229,66 @@ class INEGI(FuenteBase):
 
         try:
             datos = respuesta.json()
-        except ValueError:
-            raise ValueError("La respuesta de INEGI no es JSON válido.")
-
-        try:
-            series = datos["Series"]
-            if not series or "OBSERVATIONS" not in series[0]:
-                raise ValueError(
-                    f"No hay datos para el indicador {indicador}."
-                )
-            observaciones = series[0]["OBSERVATIONS"]
-        except (KeyError, TypeError):
+        except ValueError as exc:
             raise ValueError(
-                "La respuesta de INEGI no tiene el formato esperado."
-            )
+                "La respuesta de INEGI no es JSON válido."
+            ) from exc
 
-        if not observaciones:
-            raise ValueError(
-                f"No hay observaciones para el indicador {indicador}."
-            )
+        observaciones = _obtener_observaciones(datos, indicador)
 
         registros = []
         for obs in observaciones:
-            # Filtrar por entidad
-            cober = str(obs.get("COBER_GEO", "0"))
-            if entidad != "0" and cober != entidad:
+            if not isinstance(obs, dict):
                 continue
 
-            periodo = str(obs.get("TIME_PERIOD", ""))
+            # Normalizar el código de entidad de la observación
+            cober = str(obs.get("COBER_GEO", "0")).zfill(2)
+            if cober == "00":
+                cober = "0"
+
+            # Normalizar la entidad solicitada
+            entidad_consulta = str(entidad).zfill(2)
+            if entidad_consulta == "00":
+                entidad_consulta = "0"
+
+            # Filtrar SIEMPRE (incluido "0" = Nacional)
+            if cober != entidad_consulta:
+                continue
+
+            periodo = str(obs.get("TIME_PERIOD", "")).strip()
             anio = periodo.split("/")[0] if "/" in periodo else periodo
+
             try:
                 anio_int = int(anio)
-            except ValueError:
+            except (TypeError, ValueError):
                 continue
 
-            valor_str = obs.get("OBS_VALUE", "")
-            if valor_str in ("", "N/E", "NA", None):
+            valor_str = obs.get("OBS_VALUE")
+            if valor_str is None or str(valor_str).strip().upper() in {
+                "",
+                "N/E",
+                "NA",
+            }:
                 valor = None
             else:
                 try:
-                    valor = float(str(valor_str).replace(",", ""))
-                except ValueError:
+                    valor = float(str(valor_str).replace(",", "").strip())
+                except (TypeError, ValueError):
                     valor = None
 
-            registros.append({
-                "anio": anio_int,
-                "valor": valor,
-                "entidad": ENTIDADES.get(cober, cober),
-            })
+            registros.append(
+                {
+                    "anio": anio_int,
+                    "valor": valor,
+                    "entidad": ENTIDADES.get(cober, f"Entidad {cober}"),
+                }
+            )
 
-        df = pd.DataFrame(registros)
+        df = pd.DataFrame(
+            registros,
+            columns=["anio", "valor", "entidad"],
+        )
+
         if df.empty:
             raise ValueError(
                 f"No se pudieron parsear observaciones para {indicador}."
@@ -262,6 +296,7 @@ class INEGI(FuenteBase):
 
         if periodo_inicio is not None:
             df = df[df["anio"] >= periodo_inicio]
+
         if periodo_fin is not None:
             df = df[df["anio"] <= periodo_fin]
 
@@ -279,12 +314,20 @@ class INEGI(FuenteBase):
             codigo_indicador=indicador,
             unidad=info["unidad"],
             pais="México",
-            periodo_inicio=periodo_inicio or int(df["anio"].min()),
-            periodo_fin=periodo_fin or int(df["anio"].max()),
-            url_fuente=url.replace(token, "***"),
+            periodo_inicio=(
+                periodo_inicio
+                if periodo_inicio is not None
+                else int(df["anio"].min())
+            ),
+            periodo_fin=(
+                periodo_fin
+                if periodo_fin is not None
+                else int(df["anio"].max())
+            ),
+            url_fuente=url.replace(str(token), "***") if token else url,
             notas=(
-                f"Datos descargados de la API de Indicadores del INEGI. "
-                f"Entidad: {ENTIDADES.get(entidad, entidad)}."
+                "Datos descargados de la API de Indicadores del INEGI. "
+                f"Entidad: {ENTIDADES.get(str(entidad), entidad)}."
             ),
         )
 
