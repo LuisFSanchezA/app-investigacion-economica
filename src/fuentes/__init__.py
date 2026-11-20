@@ -2,7 +2,6 @@
 
 from src.fuentes.base import FuenteBase
 from src.fuentes.metadatos import Metadatos
-from src.fuentes.tesis import Tesis
 from src.fuentes.normalizacion import (
     normalizar_serie,
     normalizar_serie_fechas,
@@ -13,6 +12,8 @@ from src.fuentes.normalizacion import (
 from src.fuentes.world_bank import BancoMundial, INDICADORES, PAISES
 from src.fuentes.banxico import Banxico, SERIES
 from src.fuentes.openalex import OpenAlex
+from src.fuentes.tesis import Tesis
+from src.fuentes.inegi import INEGI, INDICADORES_INEGI
 
 __all__ = [
     "FuenteBase",
@@ -29,4 +30,6 @@ __all__ = [
     "SERIES",
     "OpenAlex",
     "Tesis",
+    "INEGI",
+    "INDICADORES_INEGI",
 ]
