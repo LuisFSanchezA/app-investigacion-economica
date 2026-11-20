@@ -8,6 +8,11 @@ from src.ai.asistente import (
 from src.ai.asistente_literatura import (
     sugerir_keywords,
     evaluar_corpus,
+    sintetizar_corpus,
+    detectar_vacios,
+    clasificar_papers,
+)
+from src.ai.cache_literatura import (
     sugerir_keywords_cached,
     evaluar_corpus_cached,
 )
@@ -18,6 +23,9 @@ __all__ = [
     "generar_protocolo",
     "sugerir_keywords",
     "evaluar_corpus",
+    "sintetizar_corpus",
+    "detectar_vacios",
+    "clasificar_papers",
     "sugerir_keywords_cached",
     "evaluar_corpus_cached",
 ]

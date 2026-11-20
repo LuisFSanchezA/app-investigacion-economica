@@ -17,7 +17,13 @@ import pandas as pd
 import streamlit as st
 
 from src.ai.config import get_modelo
-from src.ai.prompts_literatura import PROMPT_EVALUAR_CORPUS, PROMPT_KEYWORDS
+from src.ai.prompts_literatura import (
+    PROMPT_CLASIFICAR,
+    PROMPT_EVALUAR_CORPUS,
+    PROMPT_KEYWORDS,
+    PROMPT_SINTESIS,
+    PROMPT_VACIOS,
+)
 
 MODELO = get_modelo()
 MAX_REINTENTOS = 3
@@ -186,6 +192,85 @@ def evaluar_corpus(pregunta: str, corpus_df: pd.DataFrame) -> str:
     prompt = PROMPT_EVALUAR_CORPUS.format(
         corpus=corpus_texto,
         pregunta=pregunta.strip(),
+    )
+    return _generar_con_reintentos(prompt)
+
+
+# ---------------------------------------------------------------------------
+# Funciones avanzadas (F4)
+# ---------------------------------------------------------------------------
+
+def _corpus_a_texto(corpus_df: pd.DataFrame, max_items: int = 40) -> str:
+    """Convierte el corpus en texto plano para pasarlo a la IA."""
+    muestra = corpus_df.head(max_items)
+    lineas = []
+    for i, (_, row) in enumerate(muestra.iterrows(), start=1):
+        titulo = str(row.get("titulo", ""))[:120]
+        anio = row.get("anio", "")
+        tipo = row.get("tipo", "")
+        citas = row.get("citas", 0)
+        conceptos = str(row.get("conceptos", ""))[:80]
+        lineas.append(
+            f"{i}. {titulo} | {anio} | {tipo} | {citas} citas | {conceptos}"
+        )
+    if len(corpus_df) > max_items:
+        lineas.append(f"\n(Se muestran {max_items} de {len(corpus_df)} trabajos.)")
+    return "\n".join(lineas)
+
+
+def sintetizar_corpus(pregunta: str, corpus_df: pd.DataFrame) -> str:
+    """Sintetiza el estado del arte del corpus.
+
+    Devuelve Markdown con temas dominantes, metodologías, hallazgos y debates.
+    """
+    if not pregunta or not pregunta.strip():
+        raise ValueError("Debes proporcionar una pregunta de investigación.")
+    if corpus_df is None or corpus_df.empty:
+        raise ValueError("El corpus está vacío.")
+    if "titulo" not in corpus_df.columns:
+        raise ValueError("El corpus debe tener columna 'titulo'.")
+
+    prompt = PROMPT_SINTESIS.format(
+        pregunta=pregunta.strip(),
+        corpus=_corpus_a_texto(corpus_df),
+    )
+    return _generar_con_reintentos(prompt)
+
+
+def detectar_vacios(pregunta: str, corpus_df: pd.DataFrame) -> str:
+    """Detecta vacíos de investigación en el corpus.
+
+    Devuelve Markdown con vacíos geográficos, temporales, metodológicos, etc.
+    """
+    if not pregunta or not pregunta.strip():
+        raise ValueError("Debes proporcionar una pregunta de investigación.")
+    if corpus_df is None or corpus_df.empty:
+        raise ValueError("El corpus está vacío.")
+    if "titulo" not in corpus_df.columns:
+        raise ValueError("El corpus debe tener columna 'titulo'.")
+
+    prompt = PROMPT_VACIOS.format(
+        pregunta=pregunta.strip(),
+        corpus=_corpus_a_texto(corpus_df),
+    )
+    return _generar_con_reintentos(prompt)
+
+
+def clasificar_papers(pregunta: str, corpus_df: pd.DataFrame) -> str:
+    """Clasifica cada paper del corpus por su rol en la investigación.
+
+    Devuelve Markdown con tabla ID | Título | Categoría | Justificación.
+    """
+    if not pregunta or not pregunta.strip():
+        raise ValueError("Debes proporcionar una pregunta de investigación.")
+    if corpus_df is None or corpus_df.empty:
+        raise ValueError("El corpus está vacío.")
+    if "titulo" not in corpus_df.columns:
+        raise ValueError("El corpus debe tener columna 'titulo'.")
+
+    prompt = PROMPT_CLASIFICAR.format(
+        pregunta=pregunta.strip(),
+        corpus=_corpus_a_texto(corpus_df),
     )
     return _generar_con_reintentos(prompt)
 

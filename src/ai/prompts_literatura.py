@@ -94,3 +94,106 @@ Analiza y responde en Markdown:
 
 Responde SOLO con el Markdown.
 """
+
+PROMPT_SINTESIS = """Eres un metodólogo de investigación económica. Un estudiante \
+te comparte su corpus de literatura y su pregunta de investigación. Tu tarea es \
+sintetizar el estado del arte de forma crítica y pedagógica.
+
+PREGUNTA: {pregunta}
+
+CORPUS (título | año | tipo | citas | conceptos):
+{corpus}
+
+Responde en Markdown:
+
+## 🧭 Temas dominantes
+- 3-5 temas que aparecen repetidamente en el corpus, con 1-2 papers de ejemplo cada uno.
+
+## 🔬 Metodologías predominantes
+- Qué enfoques usan (cualitativo, cuantitativo, mixto, experimental, etc.).
+- Si hay predominio de alguno, dilo.
+
+## 📊 Hallazgos convergentes
+- Qué conclusiones comparten varios autores.
+- Marca con `[VERIFICAR]` si no estás seguro.
+
+## ⚡ Debates y tensiones
+- Dónde discrepan los autores.
+
+## 📝 Nota pedagógica
+- 2-3 líneas sobre cómo usar esta síntesis en el marco teórico.
+
+Responde SOLO con el Markdown.
+"""
+
+
+PROMPT_VACIOS = """Eres un metodólogo de investigación económica. Un estudiante \
+te comparte su corpus de literatura y su pregunta. Tu tarea es identificar \
+vacíos de investigación de forma honesta y crítica.
+
+PREGUNTA: {pregunta}
+
+CORPUS (título | año | tipo | citas | conceptos):
+{corpus}
+
+Responde en Markdown:
+
+## 🕳️ Vacíos detectados
+Para cada vacío, indica:
+- **Descripción** del vacío.
+- **Evidencia** en el corpus (qué NO aparece).
+- **Oportunidad** para la investigación del estudiante.
+- Marca `[VERIFICAR]` si el vacío podría deberse a que el corpus es limitado.
+
+Categorías a explorar:
+1. **Geográfico**: ¿faltan países o regiones?
+2. **Temporal**: ¿faltan periodos recientes o históricos?
+3. **Metodológico**: ¿predomina un método y faltan otros?
+4. **Poblacional**: ¿faltan grupos (jóvenes, mujeres, informalidad rural)?
+5. **Teórico**: ¿faltan marcos interpretativos?
+
+## ⚠️ Advertencia
+- Recuerda al estudiante que un vacío en SU corpus no es necesariamente
+  un vacío en la literatura. Debe verificar con búsquedas adicionales.
+
+## 📝 Nota pedagógica
+- 2-3 líneas sobre cómo convertir un vacío en pregunta de investigación.
+
+Responde SOLO con el Markdown.
+"""
+
+
+PROMPT_CLASIFICAR = """Eres un metodólogo de investigación económica. Clasifica cada \
+trabajo del corpus según su rol en una investigación.
+
+PREGUNTA: {pregunta}
+
+CORPUS (una línea por trabajo, con ID):
+{corpus}
+
+Para cada trabajo, asigna UNA categoría:
+- **Marco teórico**: define conceptos, teorías o enfoques.
+- **Evidencia empírica**: aporta datos, estudios de caso o resultados.
+- **Metodología**: propone o discute métodos.
+- **Contexto**: describe el fenómeno, país o periodo sin analizarlo a fondo.
+- **No clasificable**: no encaja claramente.
+
+Responde en Markdown con una tabla:
+
+| ID | Título (abreviado) | Categoría | Justificación (1 línea) |
+|----|---------------------|-----------|--------------------------|
+| 1  | ...                 | ...       | ...                      |
+
+Al final:
+## Distribución
+- Marco teórico: N
+- Evidencia empírica: N
+- Metodología: N
+- Contexto: N
+- No clasificable: N
+
+## 📝 Nota pedagógica
+- 2 líneas sobre por qué un corpus equilibrado necesita las 4 categorías.
+
+Responde SOLO con el Markdown.
+"""

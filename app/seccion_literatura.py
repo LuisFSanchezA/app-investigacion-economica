@@ -13,7 +13,13 @@ import streamlit as st
 
 from src.bibliometria import graficas, graficas_redes, metricas, redes
 from src.bibliometria import metricas, graficas
-from src.ai import sugerir_keywords_cached
+from src.ai import (
+    clasificar_papers,
+    detectar_vacios,
+    sintetizar_corpus,
+    sugerir_keywords_cached,
+)
+
 from src.bibliometria import (
     construir_query_google_scholar,
     construir_query_openalex,
@@ -584,6 +590,78 @@ def _render_redes():
     else:
         st.caption("La red no tiene aristas con el peso mínimo seleccionado.")
 
+
+def _render_evaluar():
+    st.subheader("🤖 Evaluación del corpus con IA")
+    st.caption(
+        "⚠️ Todos los análisis son **borradores generados con IA**. "
+        "Debes revisarlos, corregirlos y verificar las fuentes."
+    )
+
+    df = _corpus_como_df()
+    if df.empty:
+        st.info(
+            "Aún no hay trabajos en el corpus. Ve a la pestaña **Buscar** "
+            "y añade algunos para evaluarlos con IA."
+        )
+        return
+
+    pregunta = st.session_state.get("pregunta_final", "")
+    if not pregunta:
+        st.warning(
+            "No hay pregunta de investigación activa. Ve a la sección "
+            "**Pregunta** y define una para que la IA tenga contexto."
+        )
+        pregunta = st.text_input(
+            "O escribe la pregunta aquí:",
+            key="lit_eval_pregunta_manual",
+        )
+        if not pregunta:
+            return
+
+    st.info(f"📌 Pregunta: *{pregunta}*")
+    st.caption(f"📚 Corpus: {len(df)} trabajos.")
+
+    analisis = st.radio(
+        "Tipo de análisis:",
+        options=[
+            "Síntesis del estado del arte",
+            "Detección de vacíos",
+            "Clasificación de papers",
+        ],
+        horizontal=True,
+        key="lit_eval_tipo",
+    )
+
+    if st.button("🤖 Ejecutar análisis", key="lit_btn_ejecutar_ia", type="primary"):
+        with st.spinner("Analizando corpus... puede tomar 30-60s en hora pico."):
+            try:
+                if analisis == "Síntesis del estado del arte":
+                    resultado = sintetizar_corpus(pregunta, df)
+                elif analisis == "Detección de vacíos":
+                    resultado = detectar_vacios(pregunta, df)
+                else:
+                    resultado = clasificar_papers(pregunta, df)
+                st.session_state["lit_eval_resultado"] = resultado
+                st.session_state["lit_eval_error"] = None
+            except (ValueError, ConnectionError) as e:
+                st.session_state["lit_eval_error"] = str(e)
+
+    if st.session_state.get("lit_eval_error"):
+        st.error(f"⚠️ {st.session_state['lit_eval_error']}")
+
+    if st.session_state.get("lit_eval_resultado"):
+        st.markdown("---")
+        st.markdown(st.session_state["lit_eval_resultado"])
+        st.download_button(
+            "⬇️ Descargar análisis (Markdown)",
+            data=st.session_state["lit_eval_resultado"],
+            file_name=f"evaluacion_{analisis.lower().replace(' ', '_')}.md",
+            mime="text/markdown",
+            key="lit_btn_export_eval",
+        )
+
+
 # ---------------------------------------------------------------------------
 # Render principal
 # ---------------------------------------------------------------------------
@@ -598,8 +676,8 @@ def render():
         "y construye tu corpus bibliográfico."
     )
 
-    tab_buscar, tab_biblio, tab_redes, tab_queries, tab_corpus = st.tabs(
-        ["🔎 Buscar", "📊 Bibliometría", "🕸️ Redes", "🔧 Queries", "📚 Corpus"]
+    tab_buscar, tab_biblio, tab_redes, tab_eval, tab_queries, tab_corpus = st.tabs(
+        ["🔎 Buscar", "📊 Bibliometría", "🕸️ Redes", "🤖 Evaluar", "🔧 Queries", "📚 Corpus"]
     )
     with tab_buscar:
         _render_buscar()
@@ -607,6 +685,8 @@ def render():
         _render_bibliometria()
     with tab_redes:
         _render_redes()
+    with tab_eval:
+        _render_evaluar()
     with tab_queries:
         _render_queries()
     with tab_corpus:
