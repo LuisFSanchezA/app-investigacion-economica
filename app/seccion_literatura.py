@@ -11,6 +11,8 @@ import json
 import pandas as pd
 import streamlit as st
 
+from src.bibliometria import graficas, graficas_redes, metricas, redes
+from src.bibliometria import metricas, graficas
 from src.ai import sugerir_keywords_cached
 from src.bibliometria import (
     construir_query_google_scholar,
@@ -353,6 +355,234 @@ def _render_corpus():
         st.session_state["lit_corpus"] = []
         st.rerun()
 
+def _render_bibliometria():
+    st.subheader("📊 Bibliometría del corpus")
+    df = _corpus_como_df()
+
+    if df.empty:
+        st.info(
+            "Aún no hay trabajos en el corpus. Ve a la pestaña **Buscar** "
+            "y añade algunos para ver las métricas."
+        )
+        return
+
+    if len(df) < 3:
+        st.warning(
+            f"El corpus tiene solo {len(df)} trabajos. "
+            "Añade al menos 5-10 para que las métricas sean interpretables."
+        )
+
+    try:
+        resumen = metricas.resumen_general(df)
+    except ValueError as e:
+        st.error(f"Error al calcular métricas: {e}")
+        return
+
+    # --- Métricas generales ---
+    st.markdown("### Resumen general")
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Trabajos", resumen["n_trabajos"])
+    c2.metric("Citas totales", resumen["citas_total"])
+    c3.metric("h-index", resumen["h_index"])
+    c4.metric("% Open Access", f"{resumen['pct_open_access']}%")
+
+    c5, c6, c7, c8 = st.columns(4)
+    c5.metric("Año mín.", resumen["anio_min"] or "—")
+    c6.metric("Año máx.", resumen["anio_max"] or "—")
+    c7.metric("Autores únicos", resumen["n_autores_unicos"])
+    c8.metric("Fuentes únicas", resumen["n_fuentes_unicas"])
+
+    # --- Producción por año ---
+    st.markdown("### Producción por año")
+    df_prod = metricas.produccion_por_anio(df)
+    st.plotly_chart(
+        graficas.grafica_produccion_anual(df_prod),
+        use_container_width=True,
+        key="lit_graf_produccion",
+    )
+
+    # --- Top autores / instituciones / países / fuentes ---
+    st.markdown("### Top 10")
+    col_a, col_b = st.columns(2)
+    with col_a:
+        df_aut = metricas.top_autores(df, n=10)
+        st.plotly_chart(
+            graficas.grafica_barras_horizontal(
+                df_aut, "autor", "n_trabajos", "Top 10 autores", color_idx=1
+            ),
+            use_container_width=True, key="lit_graf_autores",
+        )
+    with col_b:
+        df_inst = metricas.top_instituciones(df, n=10)
+        st.plotly_chart(
+            graficas.grafica_barras_horizontal(
+                df_inst, "institucion", "n_trabajos", "Top 10 instituciones", color_idx=2
+            ),
+            use_container_width=True, key="lit_graf_instituciones",
+        )
+
+    col_c, col_d = st.columns(2)
+    with col_c:
+        df_pais = metricas.top_paises(df, n=10)
+        st.plotly_chart(
+            graficas.grafica_barras_horizontal(
+                df_pais, "pais", "n_trabajos", "Top 10 países", color_idx=3
+            ),
+            use_container_width=True, key="lit_graf_paises",
+        )
+    with col_d:
+        df_fuente = metricas.top_fuentes(df, n=10)
+        st.plotly_chart(
+            graficas.grafica_barras_horizontal(
+                df_fuente, "fuente", "n_trabajos", "Top 10 fuentes", color_idx=4
+            ),
+            use_container_width=True, key="lit_graf_fuentes",
+        )
+
+    # --- Top conceptos ---
+    st.markdown("### Conceptos / palabras clave")
+    df_conc = metricas.top_conceptos(df, n=20)
+    st.plotly_chart(
+        graficas.grafica_top_conceptos(df_conc),
+        use_container_width=True,
+        key="lit_graf_conceptos",
+    )
+
+    # --- Ley de Bradford ---
+    st.markdown("### Ley de Bradford")
+    st.caption(
+        "Distribución de la literatura por fuentes: la zona núcleo concentra "
+        "pocas fuentes con muchos trabajos; la periferia, muchas fuentes con pocos."
+    )
+    df_brad = metricas.ley_bradford(df)
+    st.plotly_chart(
+        graficas.grafica_ley_bradford(df_brad),
+        use_container_width=True,
+        key="lit_graf_bradford",
+    )
+
+    # --- Ley de Lotka ---
+    st.markdown("### Ley de Lotka")
+    st.caption(
+        "Productividad de autores: la mayoría publica poco; unos pocos "
+        "publican mucho."
+    )
+    df_lotka = metricas.ley_lotka(df)
+    st.plotly_chart(
+        graficas.grafica_ley_lotka(df_lotka),
+        use_container_width=True,
+        key="lit_graf_lotka",
+    )
+
+    # --- Citas ---
+    st.markdown("### Citas")
+    col_e, col_f = st.columns(2)
+    with col_e:
+        df_citas = metricas.distribucion_citas(df)
+        st.plotly_chart(
+            graficas.grafica_distribucion_citas(df_citas),
+            use_container_width=True, key="lit_graf_citas_hist",
+        )
+    with col_f:
+        st.plotly_chart(
+            graficas.grafica_scatter_citas_anio(df_citas),
+            use_container_width=True, key="lit_graf_citas_scatter",
+        )
+
+    # --- Exportar ---
+    st.markdown("### Exportar")
+    st.download_button(
+        "⬇️ Exportar métricas (CSV)",
+        data=df.to_csv(index=False).encode("utf-8"),
+        file_name="corpus_metricas.csv",
+        mime="text/csv",
+        key="lit_btn_export_metricas",
+    )
+
+
+def _render_redes():
+    st.subheader("🕸️ Redes bibliométricas")
+    df = _corpus_como_df()
+
+    if df.empty:
+        st.info(
+            "Aún no hay trabajos en el corpus. Ve a la pestaña **Buscar** "
+            "y añade algunos para construir redes."
+        )
+        return
+
+    if len(df) < 3:
+        st.warning(
+            f"El corpus tiene solo {len(df)} trabajos. "
+            "Añade al menos 5-10 para que las redes sean interpretables."
+        )
+
+    # --- Selector de tipo de red ---
+    tipo = st.radio(
+        "Tipo de red:",
+        options=["Co-autoría", "Co-palabras clave"],
+        horizontal=True,
+        key="lit_tipo_red",
+    )
+
+    min_peso = st.slider(
+        "Peso mínimo de arista (nº de co-ocurrencias):",
+        min_value=1, max_value=5, value=1, step=1,
+        key="lit_min_peso_red",
+    )
+
+    max_nodos = st.slider(
+        "Máximo de nodos a mostrar:",
+        min_value=10, max_value=100, value=50, step=10,
+        key="lit_max_nodos_red",
+    )
+
+    try:
+        if tipo == "Co-autoría":
+            grafo = redes.red_coautoria(df, min_peso=min_peso)
+            titulo = "Red de co-autoría"
+        else:
+            grafo = redes.red_copalabras(df, min_peso=min_peso)
+            titulo = "Red de co-palabras clave"
+    except ValueError as e:
+        st.error(f"Error al construir la red: {e}")
+        return
+
+    # --- Métricas de red ---
+    m = redes.metricas_red(grafo)
+    c1, c2, c3, c4, c5 = st.columns(5)
+    c1.metric("Nodos", m["n_nodos"])
+    c2.metric("Aristas", m["n_aristas"])
+    c3.metric("Densidad", m["densidad"])
+    c4.metric("Componentes", m["n_componentes"])
+    c5.metric("Grado medio", m["grado_medio"])
+
+    # --- Gráfica ---
+    fig = graficas_redes.grafica_red(grafo, titulo=titulo, max_nodos=max_nodos)
+    st.plotly_chart(fig, use_container_width=True, key="lit_graf_red")
+
+    # --- Top nodos ---
+    st.markdown("### Nodos más conectados")
+    df_top = redes.nodos_centrales(grafo, n=10)
+    st.dataframe(df_top, use_container_width=True, hide_index=True)
+
+    # --- Exportar aristas ---
+    st.markdown("### Exportar red")
+    if grafo.number_of_edges() > 0:
+        aristas = [
+            {"origen": u, "destino": v, "peso": d["weight"]}
+            for u, v, d in grafo.edges(data=True)
+        ]
+        df_aristas = pd.DataFrame(aristas)
+        st.download_button(
+            "⬇️ Exportar aristas (CSV)",
+            data=df_aristas.to_csv(index=False).encode("utf-8"),
+            file_name=f"red_{tipo.lower().replace(' ', '_')}.csv",
+            mime="text/csv",
+            key="lit_btn_export_red",
+        )
+    else:
+        st.caption("La red no tiene aristas con el peso mínimo seleccionado.")
 
 # ---------------------------------------------------------------------------
 # Render principal
@@ -368,11 +598,15 @@ def render():
         "y construye tu corpus bibliográfico."
     )
 
-    tab_buscar, tab_queries, tab_corpus = st.tabs(
-        ["🔎 Buscar", "🔧 Queries", "📚 Corpus"]
+    tab_buscar, tab_biblio, tab_redes, tab_queries, tab_corpus = st.tabs(
+        ["🔎 Buscar", "📊 Bibliometría", "🕸️ Redes", "🔧 Queries", "📚 Corpus"]
     )
     with tab_buscar:
         _render_buscar()
+    with tab_biblio:
+        _render_bibliometria()
+    with tab_redes:
+        _render_redes()
     with tab_queries:
         _render_queries()
     with tab_corpus:
