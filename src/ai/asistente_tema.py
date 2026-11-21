@@ -48,7 +48,7 @@ def _get_cliente():
 
     return genai.Client(
         api_key=api_key,
-        http_options={"timeout": 30000},
+        http_options={"timeout": 60000},
     )
 
 
@@ -68,13 +68,15 @@ def _generar_con_reintentos(prompt: str) -> str:
             return texto
         except Exception as e:
             mensaje = str(e)
-            if "503" in mensaje or "UNAVAILABLE" in mensaje:
+            if ("503" in mensaje or "UNAVAILABLE" in mensaje
+                    or "504" in mensaje or "DEADLINE_EXCEEDED" in mensaje):
                 if intento < MAX_REINTENTOS:
                     time.sleep(ESPERA_SEGUNDOS)
                     continue
                 raise ConnectionError(
-                    f"El modelo de IA está saturado tras {MAX_REINTENTOS} "
-                    f"intentos. Intenta de nuevo en unos minutos."
+                    f"El modelo de IA está saturado o tardó demasiado "
+                    f"tras {MAX_REINTENTOS} intentos. "
+                    f"Intenta de nuevo en unos minutos, o usa un prompt más corto."
                 )
             if "404" in mensaje or "NOT_FOUND" in mensaje:
                 raise ConnectionError(

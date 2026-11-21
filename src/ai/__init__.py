@@ -21,19 +21,30 @@ from src.ai.cache_literatura import (
     sugerir_keywords_cached,
     evaluar_corpus_cached,
 )
+from src.ai.cache_tema import (
+    sugerir_enunciado_cached,
+    generar_justificacion_cached,
+    generar_resumen_ejecutivo_cached,
+)
 
 __all__ = [
+    # Pregunta
     "sugerir_preguntas",
     "sugerir_objetivos",
     "generar_protocolo",
+    # Literatura
     "sugerir_keywords",
     "evaluar_corpus",
     "sintetizar_corpus",
     "detectar_vacios",
     "clasificar_papers",
+    "sugerir_keywords_cached",
+    "evaluar_corpus_cached",
+    # Tema
     "sugerir_enunciado",
     "generar_justificacion",
     "generar_resumen_ejecutivo",
-    "sugerir_keywords_cached",
-    "evaluar_corpus_cached",
+    "sugerir_enunciado_cached",
+    "generar_justificacion_cached",
+    "generar_resumen_ejecutivo_cached",
 ]
