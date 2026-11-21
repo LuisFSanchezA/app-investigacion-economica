@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
+
+from app.seccion_tema import render as render_tema
 from app.seccion_literatura import render as render_literatura
 from src.data_validation import validate_dataframe
 from src.fuentes import (
@@ -631,14 +633,7 @@ elif seccion == "Datos":
 # ============================================================
 
 elif seccion == "Tema":
-
-    st.header("🎯 Tema")
-
-    st.write(
-        "Aquí integrarás los hallazgos para construir y delimitar tu tema"
-    )
-
-    st.info("Esta sección sigue desarrollándose")
+    render_tema()
 
 
 # ============================================================
