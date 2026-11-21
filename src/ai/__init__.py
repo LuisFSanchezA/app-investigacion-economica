@@ -12,6 +12,11 @@ from src.ai.asistente_literatura import (
     detectar_vacios,
     clasificar_papers,
 )
+from src.ai.asistente_tema import (
+    sugerir_enunciado,
+    generar_justificacion,
+    generar_resumen_ejecutivo,
+)
 from src.ai.cache_literatura import (
     sugerir_keywords_cached,
     evaluar_corpus_cached,
@@ -26,6 +31,9 @@ __all__ = [
     "sintetizar_corpus",
     "detectar_vacios",
     "clasificar_papers",
+    "sugerir_enunciado",
+    "generar_justificacion",
+    "generar_resumen_ejecutivo",
     "sugerir_keywords_cached",
     "evaluar_corpus_cached",
 ]
