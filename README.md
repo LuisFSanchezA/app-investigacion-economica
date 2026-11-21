@@ -39,12 +39,19 @@ Conector para la API de Indicadores del INEGI (BIE-BISE/2.0).
 - Filtrado **siempre por entidad**, incluido `"0"` (Nacional).
 - Requiere `INEGI_TOKEN` (ver [Configuración de secretos](#configuración-de-secretos)).
 
+### Banxico (SIE)
+
+Conector para el Sistema de Información Económica del Banco de México.
+
+- Series económicas (tipo de cambio, tasas, inflación, etc.).
+- Requiere `BANXICO_TOKEN` (ver [Configuración de secretos](#configuración-de-secretos)).
+
 ### OpenAlex
 
 Conector para la API de OpenAlex (literatura académica).
 
 - Búsqueda de corpus, metadatos y redes de co-autoría / co-palabras.
-- Requiere `OPENALEX_API_KEY` (ver [Configuración de secretos](#configuración-de-secretos)).
+- Requiere `OPENALEX_API_KEY` y `OPENALEX_EMAIL` (ver [Configuración de secretos](#configuración-de-secretos)).
 
 **Nota:** los datos son reales y provienen directamente de las fuentes.
 Verificar la fecha de consulta antes de usarlos en análisis formales.
@@ -88,8 +95,11 @@ Variables usadas:
 | Variable | Servicio | Dónde obtenerla |
 |---|---|---|
 | `OPENALEX_API_KEY` | OpenAlex | https://openalex.org/ |
+| `OPENALEX_EMAIL` | OpenAlex (polite pool) | tu correo institucional |
 | `INEGI_TOKEN` | INEGI | https://www.inegi.org.mx/servicios/api_indicadores.html |
+| `BANXICO_TOKEN` | Banxico (SIE) | https://www.banxico.org.mx/SieAPIRest/service/v1/token |
 | `GEMINI_API_KEY` | Google AI Studio (Gemini) | https://aistudio.google.com/app/apikey |
+| `GEMINI_MODEL` | Gemini (config, no secreto) | ej. `gemini-2.0-flash` |
 
 **Nunca** subas `.streamlit/secrets.toml` al repositorio (ya está en `.gitignore`).
 En Streamlit Cloud, configura los secretos en el panel de la app.
@@ -118,7 +128,7 @@ académica.
 
 ## Tests
 
-- Estado actual: **147 tests**.
+- Estado actual: **152 tests**.
 - Correr: `python -m pytest -v` (requiere `requirements-dev.txt`).
 - CI: GitHub Actions corre `pytest` en cada push (ver badge arriba).
 
@@ -152,12 +162,16 @@ investigacion-economica/
 │       ├── normalizacion.py
 │       ├── world_bank.py
 │       ├── inegi.py
+│       ├── banxico.py
 │       └── openalex.py
 ├── tests/
 │   ├── test_data_validation.py
 │   ├── test_world_bank.py
 │   ├── test_inegi.py
+│   ├── test_banxico.py
+│   ├── test_openalex.py
 │   ├── test_asistente_tema.py
+│   ├── test_flujo_e2e.py
 │   └── ...
 ├── data/
 │   ├── raw/
@@ -193,9 +207,10 @@ investigacion-economica/
 
 - [x] Banco Mundial
 - [x] INEGI
+- [x] Banxico (SIE)
 - [x] OpenAlex + bibliometría
 - [x] Sección Tema (UI + IA opcional)
-- [ ] Hardening (README, secrets, tests E2E) ← en curso
+- [x] Hardening (README, secrets, tests E2E)
 - [ ] Deploy en Streamlit Cloud ← en curso
 - [ ] Evaluar IA de pago (Gemini tier pago) si la latencia es problema
 - [ ] F5b/F5c (post-beta): dataset NodOS + tesis vecinas con embeddings
