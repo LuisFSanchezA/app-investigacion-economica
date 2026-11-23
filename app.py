@@ -32,6 +32,27 @@ st.set_page_config(
 
 
 # ============================================================
+# INICIALIZACIÓN GLOBAL DE SESSION_STATE
+# ============================================================
+
+_DEFAULTS = {
+    "pregunta_final": "",
+    "objetivos_sugeridos": "",
+    "lit_corpus": [],
+    "df_fuente": None,
+    "meta_fuente": None,
+    "resumen_fuente": None,
+    "error_fuente": None,
+    "preguntas_sugeridas": "",
+    "error_ia": None,
+    "protocolo": "",
+}
+for _k, _v in _DEFAULTS.items():
+    if _k not in st.session_state:
+        st.session_state[_k] = _v
+
+
+# ============================================================
 # ENCABEZADO
 # ============================================================
 
@@ -113,20 +134,36 @@ if seccion == "Pregunta":
     if st.session_state.get("preguntas_sugeridas"):
         st.markdown(st.session_state["preguntas_sugeridas"])
 
-    # --- Paso 3: Elegir pregunta ---
+    # --- Paso 3: Elegir y guardar pregunta ---
     st.subheader("2. Elige y refina tu pregunta")
 
-    pregunta_final = st.text_area(
+    pregunta_input = st.text_area(
         "Escribe la pregunta que vas a investigar:",
+        value=st.session_state.get("pregunta_final", ""),
         height=100,
-        key="pregunta_final",
+        key="pregunta_input",
     )
+
+    if st.button("💾 Guardar pregunta", key="btn_guardar_pregunta"):
+        if pregunta_input.strip():
+            st.session_state["pregunta_final"] = pregunta_input.strip()
+            st.success(
+                "Pregunta guardada. Ya está disponible en Literatura y Tema."
+            )
+        else:
+            st.warning("Escribe una pregunta antes de guardar.")
+
+    if st.session_state.get("pregunta_final"):
+        st.info(f"📌 Pregunta activa: *{st.session_state['pregunta_final']}*")
+
+    # Variable local para los pasos siguientes (objetivos, protocolo)
+    pregunta_final = st.session_state.get("pregunta_final", "")
 
     # --- Paso 4: Sugerir objetivos ---
     if st.button("Sugerir objetivos", key="btn_objetivos"):
 
         if not pregunta_final.strip():
-            st.warning("Primero escribe tu pregunta de investigación.")
+            st.warning("Primero escribe y guarda tu pregunta de investigación.")
 
         else:
             with st.spinner("Generando objetivos..."):
@@ -358,7 +395,6 @@ elif seccion == "Fuentes de datos":
                         periodo_fin=int(anio_fin),
                     )
 
-                    # Normalizar según la estructura de los datos.
                     if "fecha" in df.columns:
                         df_norm = normalizar_serie_fechas(df)
                     else:
@@ -391,35 +427,22 @@ elif seccion == "Fuentes de datos":
         meta = st.session_state["meta_fuente"]
         resumen = st.session_state["resumen_fuente"]
 
-        st.success(
-            f"Consulta exitosa: {len(df_norm)} observaciones."
-        )
+        st.success(f"Consulta exitosa: {len(df_norm)} observaciones.")
 
-        # --- Metadatos ---
         st.subheader("Metadatos de la fuente")
         st.json(meta.como_dict())
 
-        # --- Resumen de calidad ---
         st.subheader("Resumen de calidad")
 
         col_a, col_b, col_c = st.columns(3)
 
-        col_a.metric(
-            "Observaciones",
-            resumen["observaciones"],
-        )
-
-        col_b.metric(
-            "Duplicados",
-            resumen["duplicados"],
-        )
-
+        col_a.metric("Observaciones", resumen["observaciones"])
+        col_b.metric("Duplicados", resumen["duplicados"])
         col_c.metric(
             "Faltantes (total)",
             sum(resumen["faltantes"].values()),
         )
 
-        # --- Contexto de la serie ---
         st.subheader("Contexto de la serie")
 
         st.markdown(
@@ -430,7 +453,6 @@ elif seccion == "Fuentes de datos":
             """
         )
 
-        # --- Gráfica temporal ---
         st.subheader("Serie temporal")
 
         fig = px.line(
@@ -456,11 +478,9 @@ elif seccion == "Fuentes de datos":
             key="grafica_fuente",
         )
 
-        # --- Tabla ---
         st.subheader("Datos")
         st.dataframe(df_norm, use_container_width=True)
 
-        # --- Descarga CSV ---
         st.subheader("Descargar")
 
         csv_bytes = df_norm.to_csv(index=False).encode("utf-8")
@@ -508,7 +528,6 @@ elif seccion == "Datos":
 
         st.success("Datos cargados y validados correctamente.")
 
-        # --- Métricas resumidas ---
         st.subheader("Resumen")
 
         col1, col2, col3 = st.columns(3)
@@ -520,7 +539,6 @@ elif seccion == "Datos":
             int(df.isna().sum().sum()),
         )
 
-        # --- Filtro por rango de años ---
         st.subheader("Filtro")
 
         anio_min = int(df["anio"].min())
@@ -543,7 +561,6 @@ elif seccion == "Datos":
             f"Mostrando {df_filtrado.shape[0]} de {df.shape[0]} observaciones."
         )
 
-        # --- Gráfica del PIB ---
         st.subheader("Evolución del PIB por año")
 
         fig_pib = px.line(
@@ -569,7 +586,6 @@ elif seccion == "Datos":
             key="grafica_pib",
         )
 
-        # --- Gráfica del empleo ---
         st.subheader("Evolución del empleo por año")
 
         fig_empleo = px.line(
@@ -595,7 +611,6 @@ elif seccion == "Datos":
             key="grafica_empleo",
         )
 
-        # --- Documentación de variables ---
         with st.expander("📖 ¿Qué representa cada variable?"):
 
             st.markdown(
@@ -610,11 +625,9 @@ elif seccion == "Datos":
                 """
             )
 
-        # --- Tabla de datos ---
         st.subheader("Tabla de datos")
         st.dataframe(df_filtrado, use_container_width=True)
 
-        # --- Estadísticas descriptivas ---
         st.subheader("Estadísticas descriptivas")
         st.dataframe(df_filtrado.describe(), use_container_width=True)
 
@@ -641,4 +654,4 @@ elif seccion == "Tema":
 # ============================================================
 
 st.divider()
-st.caption("Versión 0.1 - Semana 1 de desarrollo")
+st.caption("Versión 0.2-beta") 
