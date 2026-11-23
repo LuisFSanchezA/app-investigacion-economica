@@ -3,20 +3,16 @@
 Funciones:
 - sugerir_keywords(tema, pregunta) -> str
 - evaluar_corpus(pregunta, corpus_df) -> str
+- sintetizar_corpus, detectar_vacios, clasificar_papers
 
-Ambas usan Google Gemini con reintentos automáticos (3 intentos, 5s)
-para manejar saturación del modelo (error 503).
+La generación pasa por la capa de proveedor (Groq → Gemini con fallback).
 """
 
 from __future__ import annotations
 
-import time
-from typing import Any
-
 import pandas as pd
 import streamlit as st
 
-from src.ai.config import get_modelo
 from src.ai.prompts_literatura import (
     PROMPT_CLASIFICAR,
     PROMPT_EVALUAR_CORPUS,
@@ -24,92 +20,16 @@ from src.ai.prompts_literatura import (
     PROMPT_SINTESIS,
     PROMPT_VACIOS,
 )
-
-MODELO = get_modelo()
-MAX_REINTENTOS = 3
-ESPERA_SEGUNDOS = 10
+from src.ai.proveedor import generar_con_fallback
 
 
-def _get_cliente():
-    """Crea el cliente de Gemini leyendo GEMINI_API_KEY de st.secrets o env."""
-    import os
+# ---------------------------------------------------------------------------
+# Generación (capa de proveedor)
+# ---------------------------------------------------------------------------
 
-    try:
-        from google import genai
-    except ImportError:
-        raise ValueError(
-            "El SDK google-genai no está instalado. "
-            "Ejecuta: pip install google-genai"
-        )
-
-    api_key = None
-    try:
-        import streamlit as st
-        api_key = st.secrets.get("GEMINI_API_KEY")
-    except Exception:
-        pass
-
-    if not api_key:
-        api_key = os.environ.get("GEMINI_API_KEY")
-
-    if not api_key:
-        raise ValueError(
-            "No se encontró GEMINI_API_KEY. Configúrala en "
-            ".streamlit/secrets.toml o como variable de entorno."
-        )
-
-    return genai.Client(
-        api_key=api_key,
-        http_options={"timeout": 30000},  # 30s máximo
-    )
-
-
-def _generar_con_reintentos(prompt: str) -> str:
-    """Llama a Gemini con reintentos ante 503 (saturación)."""
-    cliente = _get_cliente()
-
-    ultimo_error: Exception | None = None
-    for intento in range(1, MAX_REINTENTOS + 1):
-        try:
-            respuesta = cliente.models.generate_content(
-                model=MODELO,
-                contents=prompt,
-            )
-            texto = getattr(respuesta, "text", None)
-            if not texto:
-                raise ValueError("Gemini devolvió una respuesta vacía.")
-            return texto
-        except Exception as e:
-            mensaje = str(e)
-            if "503" in mensaje or "UNAVAILABLE" in mensaje:
-                ultimo_error = e
-                if intento < MAX_REINTENTOS:
-                    time.sleep(ESPERA_SEGUNDOS)
-                    continue
-                raise ConnectionError(
-                    f"El modelo de IA está saturado tras {MAX_REINTENTOS} "
-                    f"intentos. Intenta de nuevo en unos minutos."
-                )
-            if "404" in mensaje or "NOT_FOUND" in mensaje:
-                raise ConnectionError(
-                    f"El modelo '{MODELO}' no está disponible. "
-                    f"Revisa el nombre del modelo en asistente_literatura.py."
-                )
-            if "401" in mensaje or "UNAUTHENTICATED" in mensaje:
-                raise ConnectionError(
-                    "La API key de Gemini no es válida. "
-                    "Revisa .streamlit/secrets.toml."
-                )
-            if "429" in mensaje or "RESOURCE_EXHAUSTED" in mensaje:
-                raise ConnectionError(
-                    "Cuota de la API de Gemini agotada. "
-                    "Espera unos minutos o revisa tu plan."
-                )
-            raise ValueError(f"Error de la API de Gemini: {mensaje}")
-
-    raise ConnectionError(
-        f"El modelo de IA está saturado tras {MAX_REINTENTOS} intentos."
-    )
+def _generar(prompt: str) -> str:
+    """Genera texto usando la capa de proveedor con fallback."""
+    return generar_con_fallback(prompt, max_tokens=1024)
 
 
 # ---------------------------------------------------------------------------
@@ -117,27 +37,7 @@ def _generar_con_reintentos(prompt: str) -> str:
 # ---------------------------------------------------------------------------
 
 def sugerir_keywords(tema: str, pregunta: str = "") -> str:
-    """Sugiere palabras clave para búsqueda bibliográfica.
-
-    Parámetros
-    ----------
-    tema : str
-        Tema amplio de interés.
-    pregunta : str, opcional
-        Pregunta de investigación ya refinada (si existe).
-
-    Devuelve
-    -------
-    str
-        Markdown con keywords organizadas, operadores y nota pedagógica.
-
-    Levanta
-    ------
-    ValueError
-        Si falta tema o la respuesta es inválida.
-    ConnectionError
-        Si hay problemas de red, cuota o saturación.
-    """
+    """Sugiere palabras clave para búsqueda bibliográfica."""
     if not tema or not tema.strip():
         raise ValueError("Debes proporcionar un tema para sugerir keywords.")
 
@@ -145,24 +45,11 @@ def sugerir_keywords(tema: str, pregunta: str = "") -> str:
         tema=tema.strip(),
         pregunta=(pregunta or "(sin pregunta definida aún)").strip(),
     )
-    return _generar_con_reintentos(prompt)
+    return _generar(prompt)
 
 
 def evaluar_corpus(pregunta: str, corpus_df: pd.DataFrame) -> str:
-    """Evalúa críticamente el corpus de literatura del estudiante.
-
-    Parámetros
-    ----------
-    pregunta : str
-        Pregunta de investigación.
-    corpus_df : pd.DataFrame
-        Corpus con al menos columnas: titulo, anio, tipo, citas.
-
-    Devuelve
-    -------
-    str
-        Markdown con diagnóstico, vacíos, riesgos y recomendaciones.
-    """
+    """Evalúa críticamente el corpus de literatura del estudiante."""
     if not pregunta or not pregunta.strip():
         raise ValueError("Debes proporcionar una pregunta de investigación.")
 
@@ -176,7 +63,6 @@ def evaluar_corpus(pregunta: str, corpus_df: pd.DataFrame) -> str:
             f"El corpus no tiene las columnas requeridas: {faltantes}."
         )
 
-    # Limitar a 40 trabajos para no exceder contexto del modelo
     muestra = corpus_df.head(40)
     lineas = []
     for _, row in muestra.iterrows():
@@ -193,7 +79,7 @@ def evaluar_corpus(pregunta: str, corpus_df: pd.DataFrame) -> str:
         corpus=corpus_texto,
         pregunta=pregunta.strip(),
     )
-    return _generar_con_reintentos(prompt)
+    return _generar(prompt)
 
 
 # ---------------------------------------------------------------------------
@@ -219,10 +105,7 @@ def _corpus_a_texto(corpus_df: pd.DataFrame, max_items: int = 40) -> str:
 
 
 def sintetizar_corpus(pregunta: str, corpus_df: pd.DataFrame) -> str:
-    """Sintetiza el estado del arte del corpus.
-
-    Devuelve Markdown con temas dominantes, metodologías, hallazgos y debates.
-    """
+    """Sintetiza el estado del arte del corpus."""
     if not pregunta or not pregunta.strip():
         raise ValueError("Debes proporcionar una pregunta de investigación.")
     if corpus_df is None or corpus_df.empty:
@@ -234,14 +117,11 @@ def sintetizar_corpus(pregunta: str, corpus_df: pd.DataFrame) -> str:
         pregunta=pregunta.strip(),
         corpus=_corpus_a_texto(corpus_df),
     )
-    return _generar_con_reintentos(prompt)
+    return _generar(prompt)
 
 
 def detectar_vacios(pregunta: str, corpus_df: pd.DataFrame) -> str:
-    """Detecta vacíos de investigación en el corpus.
-
-    Devuelve Markdown con vacíos geográficos, temporales, metodológicos, etc.
-    """
+    """Detecta vacíos de investigación en el corpus."""
     if not pregunta or not pregunta.strip():
         raise ValueError("Debes proporcionar una pregunta de investigación.")
     if corpus_df is None or corpus_df.empty:
@@ -253,14 +133,11 @@ def detectar_vacios(pregunta: str, corpus_df: pd.DataFrame) -> str:
         pregunta=pregunta.strip(),
         corpus=_corpus_a_texto(corpus_df),
     )
-    return _generar_con_reintentos(prompt)
+    return _generar(prompt)
 
 
 def clasificar_papers(pregunta: str, corpus_df: pd.DataFrame) -> str:
-    """Clasifica cada paper del corpus por su rol en la investigación.
-
-    Devuelve Markdown con tabla ID | Título | Categoría | Justificación.
-    """
+    """Clasifica cada paper del corpus por su rol en la investigación."""
     if not pregunta or not pregunta.strip():
         raise ValueError("Debes proporcionar una pregunta de investigación.")
     if corpus_df is None or corpus_df.empty:
@@ -272,7 +149,8 @@ def clasificar_papers(pregunta: str, corpus_df: pd.DataFrame) -> str:
         pregunta=pregunta.strip(),
         corpus=_corpus_a_texto(corpus_df),
     )
-    return _generar_con_reintentos(prompt)
+    return _generar(prompt)
+
 
 # ---------------------------------------------------------------------------
 # Versiones cacheadas para la UI
@@ -286,10 +164,7 @@ def sugerir_keywords_cached(tema: str, pregunta: str = "") -> str:
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def evaluar_corpus_cached(pregunta: str, corpus_json: str) -> str:
-    """Versión cacheada de evaluar_corpus (1h).
-
-    Recibe el corpus como JSON string para que sea hashable.
-    """
+    """Versión cacheada de evaluar_corpus (1h)."""
     import json
     corpus_df = pd.DataFrame(json.loads(corpus_json))
-    return evaluar_corpus(pregunta, corpus_df)
+    return evaluar_corpus(pregunta, corpus_df) 

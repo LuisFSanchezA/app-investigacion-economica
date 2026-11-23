@@ -1,4 +1,4 @@
-﻿# Entorno virtual
+# Entorno virtual
 .venv/
 venv/
 
@@ -26,4 +26,3 @@ desktop.ini
 .vscode/
 *.swp
 
-test_ai.py

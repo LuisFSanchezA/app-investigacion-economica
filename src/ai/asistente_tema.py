@@ -2,103 +2,26 @@
 
 from __future__ import annotations
 
-import time
-
-import pandas as pd
-
-from src.ai.config import get_modelo
 from src.ai.prompts_tema import (
     PROMPT_ENUNCIADO,
     PROMPT_JUSTIFICACION,
     PROMPT_RESUMEN_EJECUTIVO,
 )
-
-MODELO = get_modelo()
-MAX_REINTENTOS = 3
-ESPERA_SEGUNDOS = 5
+from src.ai.proveedor import generar_con_fallback
 
 
-def _get_cliente():
-    """Crea el cliente de Gemini leyendo GEMINI_API_KEY de secrets o env."""
-    import os
+# ---------------------------------------------------------------------------
+# Generación (capa de proveedor)
+# ---------------------------------------------------------------------------
 
-    try:
-        from google import genai
-    except ImportError:
-        raise ValueError(
-            "El SDK google-genai no está instalado. "
-            "Ejecuta: pip install google-genai"
-        )
-
-    api_key = None
-    try:
-        import streamlit as st
-        api_key = st.secrets.get("GEMINI_API_KEY")
-    except Exception:
-        pass
-
-    if not api_key:
-        api_key = os.environ.get("GEMINI_API_KEY")
-
-    if not api_key:
-        raise ValueError(
-            "No se encontró GEMINI_API_KEY. Configúrala en "
-            ".streamlit/secrets.toml o como variable de entorno."
-        )
-
-    return genai.Client(
-        api_key=api_key,
-        http_options={"timeout": 60000},
-    )
+def _generar(prompt: str) -> str:
+    """Genera texto usando la capa de proveedor con fallback."""
+    return generar_con_fallback(prompt, max_tokens=1024)
 
 
-def _generar_con_reintentos(prompt: str) -> str:
-    """Llama a Gemini con reintentos ante 503 (saturación)."""
-    cliente = _get_cliente()
-
-    for intento in range(1, MAX_REINTENTOS + 1):
-        try:
-            respuesta = cliente.models.generate_content(
-                model=MODELO,
-                contents=prompt,
-            )
-            texto = getattr(respuesta, "text", None)
-            if not texto:
-                raise ValueError("Gemini devolvió una respuesta vacía.")
-            return texto
-        except Exception as e:
-            mensaje = str(e)
-            if ("503" in mensaje or "UNAVAILABLE" in mensaje
-                    or "504" in mensaje or "DEADLINE_EXCEEDED" in mensaje):
-                if intento < MAX_REINTENTOS:
-                    time.sleep(ESPERA_SEGUNDOS)
-                    continue
-                raise ConnectionError(
-                    f"El modelo de IA está saturado o tardó demasiado "
-                    f"tras {MAX_REINTENTOS} intentos. "
-                    f"Intenta de nuevo en unos minutos, o usa un prompt más corto."
-                )
-            if "404" in mensaje or "NOT_FOUND" in mensaje:
-                raise ConnectionError(
-                    f"El modelo '{MODELO}' no está disponible. "
-                    f"Revisa el nombre del modelo en asistente_tema.py."
-                )
-            if "401" in mensaje or "UNAUTHENTICATED" in mensaje:
-                raise ConnectionError(
-                    "La API key de Gemini no es válida. "
-                    "Revisa .streamlit/secrets.toml."
-                )
-            if "429" in mensaje or "RESOURCE_EXHAUSTED" in mensaje:
-                raise ConnectionError(
-                    "Cuota de la API de Gemini agotada. "
-                    "Espera unos minutos o revisa tu plan."
-                )
-            raise ValueError(f"Error de la API de Gemini: {mensaje}")
-
-    raise ConnectionError(
-        f"El modelo de IA está saturado tras {MAX_REINTENTOS} intentos."
-    )
-
+# ---------------------------------------------------------------------------
+# Contexto común
+# ---------------------------------------------------------------------------
 
 def _contexto(
     pregunta: str,
@@ -125,6 +48,10 @@ def _contexto(
     }
 
 
+# ---------------------------------------------------------------------------
+# API pública
+# ---------------------------------------------------------------------------
+
 def sugerir_enunciado(
     pregunta: str,
     objetivos: str = "",
@@ -136,10 +63,7 @@ def sugerir_enunciado(
     espacio: str = "",
     variables: str = "",
 ) -> str:
-    """Sugiere un enunciado de tema delimitado.
-
-    Levanta ValueError si falta la pregunta.
-    """
+    """Sugiere un enunciado de tema delimitado."""
     if not pregunta or not pregunta.strip():
         raise ValueError("Debes proporcionar una pregunta de investigación.")
 
@@ -148,7 +72,7 @@ def sugerir_enunciado(
         fenomeno, poblacion, periodo, espacio, variables,
     )
     prompt = PROMPT_ENUNCIADO.format(**ctx)
-    return _generar_con_reintentos(prompt)
+    return _generar(prompt)
 
 
 def generar_justificacion(
@@ -171,7 +95,7 @@ def generar_justificacion(
         fenomeno, poblacion, periodo, espacio, variables,
     )
     prompt = PROMPT_JUSTIFICACION.format(**ctx)
-    return _generar_con_reintentos(prompt)
+    return _generar(prompt)
 
 
 def generar_resumen_ejecutivo(
@@ -198,4 +122,4 @@ def generar_resumen_ejecutivo(
     )
     ctx["enunciado"] = enunciado
     prompt = PROMPT_RESUMEN_EJECUTIVO.format(**ctx)
-    return _generar_con_reintentos(prompt)
+    return _generar(prompt) 
